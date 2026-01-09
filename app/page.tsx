@@ -19,10 +19,32 @@ export default function Home() {
 
   // 티커 검색
   const [searchTicker, setSearchTicker] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<{
-    found: boolean;
-    stock?: StockData;
-    excludeReason?: string;
+    success: boolean;
+    data?: {
+      ticker: string;
+      name: string;
+      sector: string;
+      exchange: string;
+      price: number;
+      marketCap: number;
+      ttmEps: number;
+      fy1Eps: number | null;
+      fy2Eps: number | null;
+      ntmEps: number | null;
+      ttmPe: number | null;
+      forwardPe: number | null;
+      fy2Pe: number | null;
+      gapRatio: number | null;
+      epsGrowthRate: number | null;
+      peg: number | null;
+      isEligible: boolean;
+      excludeReason: string | null;
+      warnings: string[];
+      analystCount: number;
+    };
+    error?: string;
   } | null>(null);
 
   const fetchData = useCallback(async (showRefreshing = false) => {
@@ -68,45 +90,30 @@ export default function Home() {
     fetchData(true);
   };
 
-  // 티커 검색 핸들러
-  const handleSearch = useCallback(() => {
+  // 티커 검색 핸들러 (API 호출)
+  const handleSearch = useCallback(async () => {
     if (!searchTicker.trim()) {
       setSearchResult(null);
       return;
     }
 
     const ticker = searchTicker.trim().toUpperCase();
+    setIsSearching(true);
+    setSearchResult(null);
 
-    // 먼저 Quality 데이터에서 검색
-    const qualityStock = qualityData.find(s => s.ticker === ticker);
-    if (qualityStock) {
-      setSearchResult({ found: true, stock: qualityStock });
-      setActiveTab('quality');
-      return;
+    try {
+      const response = await fetch(`/api/analyze/${ticker}`);
+      const result = await response.json();
+      setSearchResult(result);
+    } catch (err) {
+      setSearchResult({
+        success: false,
+        error: err instanceof Error ? err.message : '분석 중 오류 발생'
+      });
+    } finally {
+      setIsSearching(false);
     }
-
-    // High-Beta 데이터에서 검색
-    const highBetaStock = highBetaData.find(s => s.ticker === ticker);
-    if (highBetaStock) {
-      setSearchResult({ found: true, stock: highBetaStock });
-      setActiveTab('high-beta');
-      return;
-    }
-
-    // 제외된 종목 확인 (메타데이터 기반 추정)
-    const excludeReasons = [
-      'TTM EPS ≤ 0 (적자 기업)',
-      'NTM EPS ≤ 0 (미래 적자 예상)',
-      'Forward P/E > 300 (과대평가)',
-      'Forward P/E < 1 (데이터 오류)',
-      'EPS 성장률 < 22.7% (나스닥 100 평균 미만)'
-    ];
-
-    setSearchResult({
-      found: false,
-      excludeReason: `"${ticker}" 종목은 분석 대상에서 제외되었습니다.\n가능한 제외 사유:\n• ${excludeReasons.join('\n• ')}`
-    });
-  }, [searchTicker, qualityData, highBetaData]);
+  }, [searchTicker]);
 
   const currentData = activeTab === 'quality' ? qualityData : highBetaData;
 
@@ -154,25 +161,123 @@ export default function Home() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 검색 결과 표시 */}
-        {searchResult && (
-          <div className={`mb-6 rounded-xl border p-4 animate-fade-in ${searchResult.found
-            ? 'border-emerald-500/30 bg-emerald-500/10'
-            : 'border-red-500/30 bg-red-500/10'
+        {isSearching && (
+          <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-6 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-cyan-400">분석 중...</span>
+            </div>
+          </div>
+        )}
+
+        {searchResult && !isSearching && (
+          <div className={`mb-6 rounded-xl border p-4 animate-fade-in ${searchResult.success && searchResult.data?.isEligible
+              ? 'border-emerald-500/30 bg-emerald-500/10'
+              : searchResult.success
+                ? 'border-amber-500/30 bg-amber-500/10'
+                : 'border-red-500/30 bg-red-500/10'
             }`}>
-            {searchResult.found && searchResult.stock ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-emerald-400 font-bold">{searchResult.stock.ticker}</span>
-                  <span className="text-slate-300 ml-2">{searchResult.stock.name}</span>
-                  <span className="ml-4 text-cyan-400">GRIP Score: {searchResult.stock.gripScore?.toFixed(1) ?? '—'}</span>
+            {searchResult.success && searchResult.data ? (
+              <div>
+                {/* 헤더 */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-bold text-white">{searchResult.data.ticker}</span>
+                    <span className="text-slate-400">{searchResult.data.name}</span>
+                    <span className="px-2 py-1 text-xs rounded bg-slate-700 text-slate-300">{searchResult.data.exchange}</span>
+                    <span className="px-2 py-1 text-xs rounded bg-slate-700 text-slate-300">{searchResult.data.sector}</span>
+                  </div>
+                  <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
                 </div>
-                <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white">✕</button>
+
+                {/* 제외/경고 표시 */}
+                {!searchResult.data.isEligible && searchResult.data.excludeReason && (
+                  <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/30">
+                    <span className="text-red-400 font-medium">⚠ 제외 사유: </span>
+                    <span className="text-red-300">{searchResult.data.excludeReason}</span>
+                  </div>
+                )}
+
+                {searchResult.data.warnings.length > 0 && (
+                  <div className="mb-4 p-3 rounded-lg bg-amber-500/20 border border-amber-500/30">
+                    <span className="text-amber-400 font-medium">경고: </span>
+                    {searchResult.data.warnings.map((w, i) => (
+                      <span key={i} className="text-amber-300 ml-2">• {w}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* 지표 그리드 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">Price</p>
+                    <p className="text-lg font-mono text-white">${searchResult.data.price.toFixed(2)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">Market Cap</p>
+                    <p className="text-lg font-mono text-white">${(searchResult.data.marketCap / 1e9).toFixed(1)}B</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">TTM EPS</p>
+                    <p className={`text-lg font-mono ${searchResult.data.ttmEps > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {searchResult.data.ttmEps.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">NTM EPS</p>
+                    <p className={`text-lg font-mono ${searchResult.data.ntmEps && searchResult.data.ntmEps > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                      {searchResult.data.ntmEps?.toFixed(2) ?? '—'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">Gap Ratio</p>
+                    <p className={`text-lg font-mono ${searchResult.data.gapRatio && searchResult.data.gapRatio > 1.3 ? 'text-purple-400' : 'text-slate-400'}`}>
+                      {searchResult.data.gapRatio?.toFixed(3) ?? '—'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">PEG</p>
+                    <p className={`text-lg font-mono ${searchResult.data.peg && searchResult.data.peg < 1.5 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                      {searchResult.data.peg?.toFixed(2) ?? '—'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">EPS Growth</p>
+                    <p className={`text-lg font-mono ${searchResult.data.epsGrowthRate && searchResult.data.epsGrowthRate > 22.7 ? 'text-cyan-400' : 'text-slate-400'}`}>
+                      {searchResult.data.epsGrowthRate?.toFixed(1) ?? '—'}%
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">Fwd P/E</p>
+                    <p className="text-lg font-mono text-slate-300">
+                      {searchResult.data.forwardPe?.toFixed(1) ?? '—'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-800/50">
+                    <p className="text-xs text-slate-500 mb-1">Analyst #</p>
+                    <p className={`text-lg font-mono ${searchResult.data.analystCount >= 5 ? 'text-white' : 'text-amber-400'}`}>
+                      {searchResult.data.analystCount}
+                    </p>
+                  </div>
+                </div>
+
+                {/* GRIP 지표 요약 */}
+                {searchResult.data.isEligible && (
+                  <div className="mt-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                    <span className="text-cyan-400 font-medium">✓ GRIP 분석 대상 </span>
+                    <span className="text-slate-300">
+                      - Gap Ratio: {searchResult.data.gapRatio?.toFixed(2)},
+                      PEG: {searchResult.data.peg?.toFixed(2)},
+                      성장률: {searchResult.data.epsGrowthRate?.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-red-400 font-medium">검색 결과 없음</p>
-                  <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{searchResult.excludeReason}</p>
+                  <p className="text-red-400 font-medium">검색 실패</p>
+                  <p className="text-slate-400 text-sm mt-1">{searchResult.error}</p>
                 </div>
                 <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white">✕</button>
               </div>
