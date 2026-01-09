@@ -1,0 +1,101 @@
+{
+    "project_name": "Valuation Re-rating Tracker",
+    "version": "1.0.0-MVP",
+    "demo_mode": {
+        "enabled": true,
+        "fallback_on_api_error": true
+    },
+    "data_source": {
+        "provider": "AlphaVantage",
+        "providers": {
+            "fmp": {
+                "base_url": "https://financialmodelingprep.com/api/v3",
+                "api_key_env": "FMP_API_KEY",
+                "endpoints": {
+                    "quote": "/quote",
+                    "income_statement": "/income-statement",
+                    "analyst_estimates": "/analyst-estimates",
+                    "profile": "/profile",
+                    "sp500_constituents": "/sp500_constituent"
+                }
+            },
+            "alpha_vantage": {
+                "base_url": "https://www.alphavantage.co/query",
+                "api_key_env": "ALPHA_VANTAGE_API_KEY",
+                "rate_limit_per_minute": 5,
+                "functions": {
+                    "overview": "OVERVIEW",
+                    "quote": "GLOBAL_QUOTE",
+                    "earnings": "EARNINGS"
+                }
+            }
+        }
+    },
+    "universe": {
+        "type": "index",
+        "index": "SP500",
+        "custom_symbols": [],
+        "exclude_symbols": []
+    },
+    "calculation": {
+        "ntm_method": "weighted_fy",
+        "formulas": {
+            "ntm_eps": "FY1_EPS * (months_remaining / 12) + FY2_EPS * (1 - months_remaining / 12)",
+            "ttm_pe": "price / ttm_eps",
+            "forward_pe": "price / ntm_eps",
+            "gap_ratio": "ntm_eps / ttm_eps",
+            "delta_pe": "ttm_pe - forward_pe"
+        }
+    },
+    "logic_thresholds": {
+        "min_ttm_eps": 0.01,
+        "min_ntm_eps": 0.01,
+        "min_forward_pe": 1.0,
+        "max_forward_pe": 300.0,
+        "exclude_negative_eps": true
+    },
+    "validation": {
+        "flag_eps_change_threshold_pct": 20,
+        "flag_pe_vendor_divergence_pct": 15,
+        "log_missing_data": true,
+        "log_anomalies": true
+    },
+    "output_settings": {
+        "ranking_count": 50,
+        "sort_by": "gap_ratio",
+        "sort_order": "desc",
+        "display_columns": [
+            "ticker",
+            "name",
+            "sector",
+            "price",
+            "market_cap",
+            "ttm_eps",
+            "fy1_eps",
+            "fy2_eps",
+            "ntm_eps",
+            "ttm_pe",
+            "forward_pe",
+            "gap_ratio",
+            "delta_pe"
+        ],
+        "decimal_places": {
+            "price": 2,
+            "eps": 2,
+            "pe": 2,
+            "gap_ratio": 3,
+            "market_cap": 0
+        }
+    },
+    "refresh": {
+        "schedule": "daily",
+        "cron_expression": "0 22 * * 1-5",
+        "timezone": "America/New_York",
+        "cache_ttl_hours": 24
+    },
+    "storage": {
+        "cache_provider": "vercel_kv",
+        "snapshot_enabled": true,
+        "snapshot_retention_days": 90
+    }
+}
