@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { StockData, getGripGrade } from '@/types';
 import { formatNumber } from '@/lib/utils/format';
 
@@ -7,6 +8,9 @@ interface RankingTableProps {
     data: StockData[];
     isLoading?: boolean;
 }
+
+type SortKey = 'gripScore' | 'pegScore' | 'gapScore' | 'price' | 'epsGrowthRate' | 'gapRatio';
+type SortOrder = 'asc' | 'desc';
 
 // GRIP Score 색상 (2-20점)
 function getGripScoreColor(score: number | null): string {
@@ -27,7 +31,44 @@ function getScoreColor(score: number | null): string {
     return 'text-slate-400';
 }
 
+// 정렬 화살표 컴포넌트
+function SortArrow({ active, order }: { active: boolean; order: SortOrder }) {
+    return (
+        <span className={`ml-1 transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`}>
+            {order === 'desc' ? '↓' : '↑'}
+        </span>
+    );
+}
+
 export default function RankingTable({ data, isLoading }: RankingTableProps) {
+    const [sortKey, setSortKey] = useState<SortKey>('gripScore');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+    // 정렬된 데이터
+    const sortedData = useMemo(() => {
+        return [...data].sort((a, b) => {
+            const aVal = a[sortKey] ?? -Infinity;
+            const bVal = b[sortKey] ?? -Infinity;
+            return sortOrder === 'desc' ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number);
+        });
+    }, [data, sortKey, sortOrder]);
+
+    // 정렬 핸들러
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+        } else {
+            setSortKey(key);
+            setSortOrder('desc');
+        }
+    };
+
+    // 헤더 버튼 스타일
+    const headerClass = (key: SortKey) => `
+    cursor-pointer select-none group hover:text-white transition-colors
+    ${sortKey === key ? 'text-cyan-400' : ''}
+  `;
+
     if (isLoading) {
         return (
             <div className="animate-pulse">
@@ -59,23 +100,66 @@ export default function RankingTable({ data, isLoading }: RankingTableProps) {
                         <th className="px-3 py-4 text-left font-semibold text-slate-300">#</th>
                         <th className="px-3 py-4 text-left font-semibold text-slate-300">Ticker</th>
                         <th className="px-3 py-4 text-left font-semibold text-slate-300 hidden xl:table-cell">Name</th>
-                        <th className="px-3 py-4 text-center font-semibold text-cyan-400">
-                            <span className="inline-flex items-center gap-1" title="GRIP Score (2-20점)">
-                                GRIP
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                </svg>
+                        <th
+                            className={`px-3 py-4 text-center font-semibold ${headerClass('gripScore')}`}
+                            onClick={() => handleSort('gripScore')}
+                        >
+                            <span className="inline-flex items-center gap-1 text-cyan-400" title="GRIP Score (2-20점)">
+                                GRIP Score
+                                <SortArrow active={sortKey === 'gripScore'} order={sortOrder} />
                             </span>
                         </th>
-                        <th className="px-3 py-4 text-right font-semibold text-emerald-400 hidden md:table-cell" title="PEG Score (1-10)">PEG</th>
-                        <th className="px-3 py-4 text-right font-semibold text-blue-400 hidden lg:table-cell" title="Gap Score (1-10)">Gap</th>
-                        <th className="px-3 py-4 text-right font-semibold text-slate-300">Price</th>
-                        <th className="px-3 py-4 text-right font-semibold text-slate-300 hidden md:table-cell">EPS Growth</th>
-                        <th className="px-3 py-4 text-right font-semibold text-purple-400 hidden lg:table-cell">Gap Ratio</th>
+                        <th
+                            className={`px-3 py-4 text-right font-semibold hidden md:table-cell ${headerClass('pegScore')}`}
+                            onClick={() => handleSort('pegScore')}
+                            title="PEG Score (1-10)"
+                        >
+                            <span className="inline-flex items-center text-emerald-400">
+                                PEG Score
+                                <SortArrow active={sortKey === 'pegScore'} order={sortOrder} />
+                            </span>
+                        </th>
+                        <th
+                            className={`px-3 py-4 text-right font-semibold hidden lg:table-cell ${headerClass('gapScore')}`}
+                            onClick={() => handleSort('gapScore')}
+                            title="Gap Score (1-10)"
+                        >
+                            <span className="inline-flex items-center text-blue-400">
+                                Gap Score
+                                <SortArrow active={sortKey === 'gapScore'} order={sortOrder} />
+                            </span>
+                        </th>
+                        <th
+                            className={`px-3 py-4 text-right font-semibold ${headerClass('price')}`}
+                            onClick={() => handleSort('price')}
+                        >
+                            <span className="inline-flex items-center">
+                                Price
+                                <SortArrow active={sortKey === 'price'} order={sortOrder} />
+                            </span>
+                        </th>
+                        <th
+                            className={`px-3 py-4 text-right font-semibold hidden md:table-cell ${headerClass('epsGrowthRate')}`}
+                            onClick={() => handleSort('epsGrowthRate')}
+                        >
+                            <span className="inline-flex items-center">
+                                EPS Growth
+                                <SortArrow active={sortKey === 'epsGrowthRate'} order={sortOrder} />
+                            </span>
+                        </th>
+                        <th
+                            className={`px-3 py-4 text-right font-semibold hidden lg:table-cell ${headerClass('gapRatio')}`}
+                            onClick={() => handleSort('gapRatio')}
+                        >
+                            <span className="inline-flex items-center text-purple-400">
+                                Gap Ratio
+                                <SortArrow active={sortKey === 'gapRatio'} order={sortOrder} />
+                            </span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((stock, index) => (
+                    {sortedData.map((stock, index) => (
                         <tr
                             key={stock.ticker}
                             className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors group"

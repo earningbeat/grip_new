@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import RankingTable from '@/components/RankingTable';
 import HighBetaTable from '@/components/HighBetaTable';
 import MetadataCard from '@/components/MetadataCard';
@@ -17,6 +17,14 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 티커 검색
+  const [searchTicker, setSearchTicker] = useState('');
+  const [searchResult, setSearchResult] = useState<{
+    found: boolean;
+    stock?: StockData;
+    excludeReason?: string;
+  } | null>(null);
+
   const fetchData = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) {
       setIsRefreshing(true);
@@ -26,7 +34,6 @@ export default function Home() {
     setError(null);
 
     try {
-      // 두 API를 병렬로 호출
       const [qualityResponse, highBetaResponse] = await Promise.all([
         fetch('/api/ranking'),
         fetch('/api/high-beta')
@@ -61,6 +68,46 @@ export default function Home() {
     fetchData(true);
   };
 
+  // 티커 검색 핸들러
+  const handleSearch = useCallback(() => {
+    if (!searchTicker.trim()) {
+      setSearchResult(null);
+      return;
+    }
+
+    const ticker = searchTicker.trim().toUpperCase();
+
+    // 먼저 Quality 데이터에서 검색
+    const qualityStock = qualityData.find(s => s.ticker === ticker);
+    if (qualityStock) {
+      setSearchResult({ found: true, stock: qualityStock });
+      setActiveTab('quality');
+      return;
+    }
+
+    // High-Beta 데이터에서 검색
+    const highBetaStock = highBetaData.find(s => s.ticker === ticker);
+    if (highBetaStock) {
+      setSearchResult({ found: true, stock: highBetaStock });
+      setActiveTab('high-beta');
+      return;
+    }
+
+    // 제외된 종목 확인 (메타데이터 기반 추정)
+    const excludeReasons = [
+      'TTM EPS ≤ 0 (적자 기업)',
+      'NTM EPS ≤ 0 (미래 적자 예상)',
+      'Forward P/E > 300 (과대평가)',
+      'Forward P/E < 1 (데이터 오류)',
+      'EPS 성장률 < 22.7% (나스닥 100 평균 미만)'
+    ];
+
+    setSearchResult({
+      found: false,
+      excludeReason: `"${ticker}" 종목은 분석 대상에서 제외되었습니다.\n가능한 제외 사유:\n• ${excludeReasons.join('\n• ')}`
+    });
+  }, [searchTicker, qualityData, highBetaData]);
+
   const currentData = activeTab === 'quality' ? qualityData : highBetaData;
 
   return (
@@ -71,25 +118,34 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">
-                <span className="gradient-text">Re-rating</span>
+                <span className="gradient-text">GRIP</span>
                 <span className="text-slate-300 ml-2">Tracker</span>
               </h1>
               <p className="text-sm text-slate-500 mt-1">
-                밸류에이션 리레이팅 후보 추적
+                Growth Re-rating Inflection Point
               </p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-white transition-colors"
-              >
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-                </svg>
-              </a>
+            {/* 티커 검색 */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTicker}
+                  onChange={(e) => setSearchTicker(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="티커 검색 (예: NVDA)"
+                  className="w-40 md:w-56 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                />
+                <button
+                  onClick={handleSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -97,6 +153,33 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 검색 결과 표시 */}
+        {searchResult && (
+          <div className={`mb-6 rounded-xl border p-4 animate-fade-in ${searchResult.found
+              ? 'border-emerald-500/30 bg-emerald-500/10'
+              : 'border-red-500/30 bg-red-500/10'
+            }`}>
+            {searchResult.found && searchResult.stock ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-emerald-400 font-bold">{searchResult.stock.ticker}</span>
+                  <span className="text-slate-300 ml-2">{searchResult.stock.name}</span>
+                  <span className="ml-4 text-cyan-400">GRIP Score: {searchResult.stock.gripScore?.toFixed(1) ?? '—'}</span>
+                </div>
+                <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-red-400 font-medium">검색 결과 없음</p>
+                  <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{searchResult.excludeReason}</p>
+                </div>
+                <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Error Banner */}
         {error && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 animate-fade-in">
@@ -154,7 +237,7 @@ export default function Home() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
-                <span>High-Beta (Turnaround)</span>
+                <span>High-Beta</span>
                 <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-amber-500/30 text-amber-400">
                   {highBetaData.length}
                 </span>
@@ -163,7 +246,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tab Description */}
+        {/* Tab Description - 새 점수 체계 반영 */}
         <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
           {activeTab === 'quality' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -172,11 +255,11 @@ export default function Home() {
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
                     <span className="text-cyan-400 font-bold text-sm">G</span>
                   </div>
-                  <h3 className="font-semibold text-cyan-400">GRIP</h3>
+                  <h3 className="font-semibold text-cyan-400">GRIP Score</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">Growth Re-rating Inflection Point</p>
+                <p className="text-xs text-slate-400 mb-2">PEG Score + Gap Score (2-20점)</p>
                 <p className="text-xs text-slate-500">
-                  PEG + Gap Ratio 복합 지표. 고성장 진입 또는 진입 예정 종목 식별.
+                  정규분포 기반 복합 점수. 높을수록 고성장 저평가 종목.
                 </p>
               </div>
 
@@ -185,37 +268,37 @@ export default function Home() {
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                     <span className="text-emerald-400 font-bold text-sm">P</span>
                   </div>
-                  <h3 className="font-semibold text-white">PEG Ratio</h3>
+                  <h3 className="font-semibold text-white">PEG Score</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">P/E ÷ EPS Growth%</p>
+                <p className="text-xs text-slate-400 mb-2">정규분포 기반 (1-10점)</p>
                 <p className="text-xs text-slate-500">
-                  <span className="text-emerald-400">&lt; 1.5</span> = 고성장주. 낮을수록 저평가.
+                  PEG가 <span className="text-emerald-400">낮을수록</span> 높은 점수. 저평가 고성장.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                    <span className="text-blue-400 font-bold text-sm">F</span>
+                    <span className="text-blue-400 font-bold text-sm">G</span>
                   </div>
-                  <h3 className="font-semibold text-white">Forward PEG</h3>
+                  <h3 className="font-semibold text-white">Gap Score</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">Fwd P/E ÷ FY2 Growth%</p>
+                <p className="text-xs text-slate-400 mb-2">정규분포 기반 (1-10점)</p>
                 <p className="text-xs text-slate-500">
-                  <span className="text-blue-400">&lt; 1.5</span> = 고성장 진입 예정. 리레이팅 시그널.
+                  Gap Ratio가 <span className="text-blue-400">높을수록</span> 높은 점수. 실적 개선 기대.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <span className="text-purple-400 font-bold text-sm">R</span>
+                    <span className="text-purple-400 font-bold text-sm">A</span>
                   </div>
-                  <h3 className="font-semibold text-white">Gap Ratio</h3>
+                  <h3 className="font-semibold text-white">Adj. PEG</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">NTM EPS ÷ TTM EPS</p>
+                <p className="text-xs text-slate-400 mb-2">나스닥 100 벤치마크</p>
                 <p className="text-xs text-slate-500">
-                  <span className="text-purple-400">&gt; 1.3</span> = 강력한 실적 개선 예상.
+                  평균 성장률 <span className="text-purple-400">22.7%</span> 이상만 분석 대상.
                 </p>
               </div>
             </div>
@@ -228,12 +311,12 @@ export default function Home() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-amber-400 mb-1">High-Beta: 턴어라운드 후보</h3>
+                  <h3 className="font-semibold text-amber-400 mb-1">Turnaround Score</h3>
                   <p className="text-sm text-slate-300 mb-2">
-                    현재 적자(TTM EPS ≤ 0)이지만 미래 흑자 전환(Forward EPS &gt; 0)이 예상되는 종목입니다.
+                    TTM EPS 음수 → NTM EPS 양수 전환 종목. <strong>Delta = NTM - TTM</strong>이 클수록 높은 점수.
                   </p>
                   <p className="text-xs text-slate-400">
-                    ⚠️ <strong>고위험 투자</strong>: 실적 개선이 지연되거나 예상에 못 미칠 경우 큰 손실이 발생할 수 있습니다.
+                    ⚠️ <strong>고위험</strong>: 실적 개선 지연 시 큰 손실 가능
                   </p>
                 </div>
               </div>
@@ -246,7 +329,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">
               {activeTab === 'quality'
-                ? `Top ${currentData.length} by Gap Ratio`
+                ? `Top ${currentData.length} by GRIP Score`
                 : `Turnaround Candidates (${currentData.length})`
               }
             </h2>
@@ -256,8 +339,8 @@ export default function Home() {
               </svg>
               <span>
                 {activeTab === 'quality'
-                  ? '음수 EPS 및 비정상 P/E 종목 자동 제외'
-                  : 'TTM EPS 음수 & FY2 EPS 양수 종목만 표시'
+                  ? '헤더 클릭으로 정렬 | 나스닥 100 벤치마크 필터 적용'
+                  : 'TTM EPS 음수 & NTM EPS 양수 종목만 표시'
                 }
               </span>
             </div>
@@ -273,9 +356,7 @@ export default function Home() {
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-slate-800/50 text-center text-slate-500 text-sm">
           <p>
-            데이터 제공: <a href="https://financialmodelingprep.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Financial Modeling Prep</a>
-            {' / '}
-            <a href="https://www.alphavantage.co" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Alpha Vantage</a>
+            데이터: <a href="https://www.alphavantage.co" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Alpha Vantage</a>
           </p>
           <p className="mt-2 text-xs text-slate-600">
             ⚠️ 본 도구는 리서치 참고용이며, 투자 결정은 본인 책임입니다.
