@@ -1,5 +1,6 @@
 import config from '@/config.json';
 import type { GripStatus } from '@/types';
+import { NASDAQ100_BENCHMARK, BENCHMARK_THRESHOLDS } from '@/lib/data/nasdaq100-benchmark';
 
 export interface StockData {
     ticker: string;
@@ -12,20 +13,25 @@ export interface StockData {
     fy2Eps: number;
     ntmEps: number | null;
     ttmPe: number | null;
-    forwardPe: number | null;           // Price / NTM EPS (Rolling 12개월)
-    fy2Pe: number | null;               // Price / FY2 EPS (고정 회계연도)
+    forwardPe: number | null;
+    fy2Pe: number | null;
     gapRatio: number | null;
     deltaPe: number | null;
-    // GRIP 관련 지표 (Quality: TTM > 0)
     epsGrowthRate: number | null;
     forwardEpsGrowth: number | null;
     peg: number | null;
     forwardPeg: number | null;
-    gripScore: number | null;           // GRIP Score (복합 지표)
+    // 새 GRIP 점수 체계
+    pegScore: number | null;
+    gapScore: number | null;
+    gripScore: number | null;
     gripStatus: GripStatus;
-    // GRIP-TS 관련 지표 (High-Beta: TTM < 0)
-    turnaroundRatio: number | null;     // FY2 EPS / |TTM EPS| (흑자 전환 비율)
-    gripTsScore: number | null;         // GRIP-TS Score (턴어라운드 속도)
+    // EPS 품질 체크
+    isQualityGrowth: boolean;
+    epsWarnings: string[];
+    // High-Beta
+    turnaroundDelta: number | null;
+    turnaroundScore: number | null;
     fiscalYearEndMonth: number;
     lastUpdated: string;
 }
@@ -82,6 +88,27 @@ export function filterPeRange(data: StockData[]): FilterResult {
 }
 
 /**
+ * Adj.PEG 필터링: 나스닥 100 평균 이상의 성장률을 가진 종목만 통과
+ */
+export function filterByBenchmark(data: StockData[]): FilterResult {
+    const minGrowth = BENCHMARK_THRESHOLDS.minEpsGrowthRate;
+    const passed: StockData[] = [];
+    const excluded: { stock: StockData; reason: string }[] = [];
+
+    for (const stock of data) {
+        if (stock.epsGrowthRate === null) {
+            excluded.push({ stock, reason: 'EPS 성장률 계산 불가' });
+        } else if (stock.epsGrowthRate < minGrowth) {
+            excluded.push({ stock, reason: `EPS 성장률 < ${minGrowth.toFixed(1)}% (나스닥 100 평균 미만)` });
+        } else {
+            passed.push(stock);
+        }
+    }
+
+    return { passed, excluded };
+}
+
+/**
  * ETF/펀드 제외 필터
  */
 export function filterFundsAndEtfs(data: StockData[], profiles: Map<string, boolean>): FilterResult {
@@ -119,10 +146,26 @@ export function applyAllFilters(data: StockData[]): FilterResult {
     current = peResult.passed;
     allExcluded.push(...peResult.excluded);
 
+    // 3. Adj.PEG 필터 (나스닥 100 평균 이상 성장률)
+    const benchmarkResult = filterByBenchmark(current);
+    current = benchmarkResult.passed;
+    allExcluded.push(...benchmarkResult.excluded);
+
     return {
         passed: current,
         excluded: allExcluded
     };
+}
+
+/**
+ * GRIP Score 기준 정렬 (새 점수 체계)
+ */
+export function sortByGripScore(data: StockData[], order: 'asc' | 'desc' = 'desc'): StockData[] {
+    return [...data].sort((a, b) => {
+        const aScore = a.gripScore ?? -Infinity;
+        const bScore = b.gripScore ?? -Infinity;
+        return order === 'desc' ? bScore - aScore : aScore - bScore;
+    });
 }
 
 /**
@@ -137,12 +180,12 @@ export function sortByGapRatio(data: StockData[], order: 'asc' | 'desc' = 'desc'
 }
 
 /**
- * GRIP Score 기준 정렬
+ * 턴어라운드 Score 기준 정렬 (High-Beta용)
  */
-export function sortByGripScore(data: StockData[], order: 'asc' | 'desc' = 'desc'): StockData[] {
+export function sortByTurnaroundScore(data: StockData[], order: 'asc' | 'desc' = 'desc'): StockData[] {
     return [...data].sort((a, b) => {
-        const aScore = a.gripScore ?? -Infinity;
-        const bScore = b.gripScore ?? -Infinity;
+        const aScore = a.turnaroundScore ?? -Infinity;
+        const bScore = b.turnaroundScore ?? -Infinity;
         return order === 'desc' ? bScore - aScore : aScore - bScore;
     });
 }
@@ -155,17 +198,17 @@ export function filterByGripStatus(data: StockData[], statuses: GripStatus[]): S
 }
 
 /**
- * 상위 N개 추출
+ * 상위 N개 추출 (GRIP Score 기준)
  */
 export function getTopN(data: StockData[], n: number = config.output_settings.ranking_count): StockData[] {
-    const sorted = sortByGapRatio(data, config.output_settings.sort_order as 'asc' | 'desc');
+    const sorted = sortByGripScore(data, 'desc');
     return sorted.slice(0, n);
 }
 
 /**
- * GRIP 기준 상위 N개 추출
+ * High-Beta 상위 N개 추출 (Turnaround Score 기준)
  */
-export function getTopNByGrip(data: StockData[], n: number = config.output_settings.ranking_count): StockData[] {
-    const sorted = sortByGripScore(data, 'desc');
+export function getTopNHighBeta(data: StockData[], n: number = config.output_settings.ranking_count): StockData[] {
+    const sorted = sortByTurnaroundScore(data, 'desc');
     return sorted.slice(0, n);
 }

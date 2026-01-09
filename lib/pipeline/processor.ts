@@ -137,11 +137,17 @@ function transformToStockData(raw: RawStockData): StockData | null {
         forwardEpsGrowth: metrics.forwardEpsGrowth,
         peg: metrics.peg,
         forwardPeg: metrics.forwardPeg,
-        gripScore: metrics.gripScore,
+        // 새 정규분포 기반 점수 (파이프라인에서 별도 계산)
+        pegScore: null,
+        gapScore: null,
+        gripScore: null,
         gripStatus: metrics.gripStatus,
+        // EPS 품질 체크 (파이프라인에서 별도 계산)
+        isQualityGrowth: true,
+        epsWarnings: [],
         // GRIP-TS 관련 필드
-        turnaroundRatio: metrics.turnaroundRatio,
-        gripTsScore: metrics.gripTsScore,
+        turnaroundDelta: metrics.turnaroundRatio,  // 기존 metrics 재사용
+        turnaroundScore: null,
         fiscalYearEndMonth,
         lastUpdated: new Date().toISOString()
     };
