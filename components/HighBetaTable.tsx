@@ -50,8 +50,8 @@ export default function HighBetaTable({ data, isLoading }: HighBetaTableProps) {
                         <th className="px-3 py-4 text-left font-semibold text-slate-300">Ticker</th>
                         <th className="px-3 py-4 text-left font-semibold text-slate-300 hidden xl:table-cell">Name</th>
                         <th className="px-3 py-4 text-center font-semibold text-amber-400">
-                            <span className="inline-flex items-center gap-1" title="Turnaround Score (1-10)">
-                                T-Score
+                            <span className="inline-flex items-center gap-1" title="T-GRIP Score (1-10)">
+                                T-GRIP
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                 </svg>
@@ -104,8 +104,8 @@ export default function HighBetaTable({ data, isLoading }: HighBetaTableProps) {
                             </td>
                             <td className="px-3 py-3 text-right font-mono hidden md:table-cell">
                                 <span className={`px-2 py-1 rounded ${stock.turnaroundDelta && stock.turnaroundDelta > 1
-                                        ? 'bg-cyan-500/20 text-cyan-400'
-                                        : 'text-slate-400'
+                                    ? 'bg-cyan-500/20 text-cyan-400'
+                                    : 'text-slate-400'
                                     }`}>
                                     {stock.turnaroundDelta ? `+${stock.turnaroundDelta.toFixed(2)}` : '—'}
                                 </span>

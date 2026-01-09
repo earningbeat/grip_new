@@ -156,8 +156,8 @@ export default function Home() {
         {/* 검색 결과 표시 */}
         {searchResult && (
           <div className={`mb-6 rounded-xl border p-4 animate-fade-in ${searchResult.found
-              ? 'border-emerald-500/30 bg-emerald-500/10'
-              : 'border-red-500/30 bg-red-500/10'
+            ? 'border-emerald-500/30 bg-emerald-500/10'
+            : 'border-red-500/30 bg-red-500/10'
             }`}>
             {searchResult.found && searchResult.stock ? (
               <div className="flex items-center justify-between">
@@ -303,22 +303,57 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                    <span className="text-amber-400 font-bold text-sm">T</span>
+                  </div>
+                  <h3 className="font-semibold text-amber-400">T-GRIP Score</h3>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-amber-400 mb-1">Turnaround Score</h3>
-                  <p className="text-sm text-slate-300 mb-2">
-                    TTM EPS 음수 → NTM EPS 양수 전환 종목. <strong>Delta = NTM - TTM</strong>이 클수록 높은 점수.
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    ⚠️ <strong>고위험</strong>: 실적 개선 지연 시 큰 손실 가능
-                  </p>
+                <p className="text-xs text-slate-400 mb-2">Turnaround GRIP (1-10점)</p>
+                <p className="text-xs text-slate-500">
+                  정규분포 기반. Delta가 <span className="text-amber-400">클수록</span> 높은 점수.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                    <span className="text-cyan-400 font-bold text-sm">Δ</span>
+                  </div>
+                  <h3 className="font-semibold text-white">Delta</h3>
                 </div>
+                <p className="text-xs text-slate-400 mb-2">NTM EPS − TTM EPS</p>
+                <p className="text-xs text-slate-500">
+                  EPS 변화량. <span className="text-cyan-400">클수록</span> 강력한 턴어라운드.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+                    <span className="text-red-400 font-bold text-sm">−</span>
+                  </div>
+                  <h3 className="font-semibold text-white">TTM EPS</h3>
+                </div>
+                <p className="text-xs text-slate-400 mb-2">과거 12개월 실적</p>
+                <p className="text-xs text-slate-500">
+                  <span className="text-red-400">음수</span> = 현재 적자 상태
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <span className="text-emerald-400 font-bold text-sm">+</span>
+                  </div>
+                  <h3 className="font-semibold text-white">NTM EPS</h3>
+                </div>
+                <p className="text-xs text-slate-400 mb-2">향후 12개월 예상</p>
+                <p className="text-xs text-slate-500">
+                  <span className="text-emerald-400">양수</span> = 흑자 전환 예상
+                </p>
               </div>
             </div>
           )}
