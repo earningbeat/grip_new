@@ -4,21 +4,45 @@ import { StockData, getGripGrade } from '@/types';
 import { formatNumber, formatMarketCap, formatPercent } from '@/lib/utils/format';
 
 interface StockOverviewModalProps {
-    stock: StockData | null;
+    stock: any;
     onClose: () => void;
 }
 
-function MetricRow({ label, value, color = 'text-white' }: { label: string; value: string; color?: string }) {
+function MetricRow({ label, value, color = 'text-white', highlight = false }: { label: string; value: string; color?: string; highlight?: boolean }) {
     return (
-        <div className="flex justify-between items-center bg-slate-800/30 p-3 rounded-xl">
+        <div className={`flex justify-between items-center p-3 rounded-xl ${highlight ? 'bg-slate-800/50 border border-slate-700/50' : 'bg-slate-800/30'}`}>
             <span className="text-xs text-slate-400">{label}</span>
             <span className={`text-sm font-mono font-bold ${color}`}>{value}</span>
         </div>
     );
 }
 
+// Rule of 40 계산
+function calculateRuleOf40(revGrowth: number | null, margin: number | null): number | null {
+    if (revGrowth === null || margin === null) return null;
+    return (revGrowth * 100) + (margin * 100);
+}
+
+// EV/Revenue 계산
+function calculateEvRevenue(marketCap: number, revenue: number): number | null {
+    if (!revenue || revenue <= 0 || !marketCap) return null;
+    return marketCap / revenue;
+}
+
 export default function StockOverviewModal({ stock, onClose }: StockOverviewModalProps) {
     if (!stock) return null;
+
+    const isProfitable = stock.ttmEps > 0;
+    const isTurnaround = stock.ttmEps <= 0;
+
+    // Calculate metrics on-the-fly for turnaround stocks
+    const ruleOf40 = calculateRuleOf40(stock.revenueGrowthYoY, stock.grossMargin);
+    const evRevenue = calculateEvRevenue(stock.marketCap, stock.revenue);
+
+    // P/E 계산 (흑자 기업만)
+    const ttmPe = isProfitable && stock.price > 0 ? stock.price / stock.ttmEps : null;
+    const forwardPe = stock.ntmEps > 0 && stock.price > 0 ? stock.price / stock.ntmEps : null;
+    const peg = ttmPe && stock.epsGrowthRate > 0 ? ttmPe / stock.epsGrowthRate : null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -28,8 +52,8 @@ export default function StockOverviewModal({ stock, onClose }: StockOverviewModa
                 onClick={onClose}
             />
 
-            {/* Modal Content - Full width on mobile, centered on desktop */}
-            <div className="relative w-full sm:max-w-lg max-h-[85vh] overflow-y-auto bg-slate-900 border-t sm:border border-slate-800 sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom sm:zoom-in duration-200">
+            {/* Modal Content */}
+            <div className="relative w-full sm:max-w-lg max-h-[85vh] overflow-y-auto bg-slate-900 border-t sm:border border-slate-800 sm:rounded-2xl shadow-2xl">
 
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md px-4 py-4 border-b border-slate-800 flex justify-between items-center">
@@ -38,6 +62,11 @@ export default function StockOverviewModal({ stock, onClose }: StockOverviewModa
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[9px] font-bold border border-emerald-500/20">
                             {stock.exchange || 'NASDAQ'}
                         </span>
+                        {isTurnaround && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[9px] font-bold border border-amber-500/20">
+                                TURNAROUND
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={onClose}
@@ -59,11 +88,18 @@ export default function StockOverviewModal({ stock, onClose }: StockOverviewModa
                     {/* Key Metrics Grid */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3 text-center">
-                            <p className="text-[9px] text-slate-600 uppercase mb-1">GRIP Score</p>
-                            <p className={`text-2xl font-black ${stock.gripScore && stock.gripScore >= 16 ? 'text-emerald-400' : 'text-white'}`}>
-                                {stock.gripScore?.toFixed(1) ?? '—'}
+                            <p className="text-[9px] text-slate-600 uppercase mb-1">
+                                {isProfitable ? 'GRIP Score' : 'T-GRIP Score'}
                             </p>
-                            <p className="text-[10px] text-slate-500">Grade: {getGripGrade(stock.gripScore)}</p>
+                            <p className={`text-2xl font-black ${isProfitable
+                                    ? (stock.gripScore >= 6 ? 'text-emerald-400' : 'text-white')
+                                    : (stock.tGripScore >= 6 ? 'text-amber-400' : 'text-white')
+                                }`}>
+                                {isProfitable ? stock.gripScore?.toFixed(1) : stock.tGripScore?.toFixed(1) ?? '—'}
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                                {isProfitable ? getGripGrade(stock.gripScore) : 'Turnaround'}
+                            </p>
                         </div>
                         <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3 text-center">
                             <p className="text-[9px] text-slate-600 uppercase mb-1">Price</p>
@@ -75,44 +111,108 @@ export default function StockOverviewModal({ stock, onClose }: StockOverviewModa
                     {/* EPS Section */}
                     <div className="space-y-2">
                         <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Earnings</h3>
-                        <MetricRow label="TTM EPS" value={`$${stock.ttmEps?.toFixed(2)}`} color={stock.ttmEps && stock.ttmEps > 0 ? 'text-emerald-400' : 'text-rose-400'} />
-                        <MetricRow label="NTM EPS (Est.)" value={`$${stock.ntmEps?.toFixed(2) ?? '—'}`} color="text-cyan-400" />
-                        <MetricRow label="Gap Ratio" value={`${stock.gapRatio?.toFixed(2) ?? '—'}x`} color="text-indigo-400" />
-                        <MetricRow label="Growth Rate" value={`${stock.epsGrowthRate?.toFixed(1) ?? '—'}%`} />
+                        <MetricRow
+                            label="TTM EPS"
+                            value={`$${stock.ttmEps?.toFixed(2)}`}
+                            color={stock.ttmEps > 0 ? 'text-emerald-400' : 'text-rose-400'}
+                        />
+                        <MetricRow
+                            label="NTM EPS (Est.)"
+                            value={stock.ntmEps ? `$${stock.ntmEps.toFixed(2)}` : '—'}
+                            color={stock.ntmEps > 0 ? 'text-cyan-400' : 'text-rose-400'}
+                        />
+                        {isProfitable && (
+                            <>
+                                <MetricRow
+                                    label="Gap Ratio"
+                                    value={stock.gapRatio ? `${stock.gapRatio.toFixed(2)}x` : '—'}
+                                    color="text-indigo-400"
+                                />
+                                <MetricRow
+                                    label="Growth Rate"
+                                    value={stock.epsGrowthRate ? `${stock.epsGrowthRate.toFixed(1)}%` : '—'}
+                                />
+                            </>
+                        )}
                     </div>
 
-                    {/* Valuation Section */}
+                    {/* Valuation Section - Different for profitable vs turnaround */}
                     <div className="space-y-2">
                         <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Valuation</h3>
-                        <MetricRow label="TTM P/E" value={stock.ttmPe ? `${stock.ttmPe.toFixed(1)}x` : '—'} />
-                        <MetricRow label="Forward P/E" value={stock.forwardPe ? `${stock.forwardPe.toFixed(1)}x` : '—'} color="text-cyan-400" />
-                        <MetricRow label="PEG Ratio" value={stock.peg ? stock.peg.toFixed(2) : '—'} color={stock.peg && stock.peg < 1.5 ? 'text-emerald-400' : 'text-white'} />
+
+                        {isProfitable ? (
+                            <>
+                                <MetricRow
+                                    label="TTM P/E"
+                                    value={ttmPe ? `${ttmPe.toFixed(1)}x` : '—'}
+                                />
+                                <MetricRow
+                                    label="Forward P/E"
+                                    value={forwardPe ? `${forwardPe.toFixed(1)}x` : '—'}
+                                    color="text-cyan-400"
+                                />
+                                <MetricRow
+                                    label="PEG Ratio"
+                                    value={peg ? peg.toFixed(2) : '—'}
+                                    color={peg && peg < 1.5 ? 'text-emerald-400' : 'text-white'}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <MetricRow
+                                    label="EV/Revenue"
+                                    value={evRevenue ? `${evRevenue.toFixed(1)}x` : '—'}
+                                    color="text-cyan-400"
+                                    highlight
+                                />
+                                <MetricRow
+                                    label="Rule of 40"
+                                    value={ruleOf40 !== null ? ruleOf40.toFixed(0) : '—'}
+                                    color={ruleOf40 && ruleOf40 >= 40 ? 'text-emerald-400' : ruleOf40 && ruleOf40 >= 20 ? 'text-yellow-400' : 'text-rose-400'}
+                                    highlight
+                                />
+                                <MetricRow
+                                    label="Revenue Growth"
+                                    value={stock.revenueGrowthYoY !== null ? formatPercent(stock.revenueGrowthYoY) : '—'}
+                                    color={stock.revenueGrowthYoY > 0.2 ? 'text-emerald-400' : 'text-white'}
+                                />
+                            </>
+                        )}
                     </div>
 
-                    {/* Profitability Section */}
+                    {/* Margins */}
                     <div className="space-y-2">
                         <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Margins</h3>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="bg-slate-800/30 rounded-xl p-2 text-center">
                                 <p className="text-[9px] text-slate-600">Gross</p>
-                                <p className="text-sm font-bold text-white">{stock.grossMargin ? formatPercent(stock.grossMargin, 0) : '—'}</p>
+                                <p className={`text-sm font-bold ${stock.grossMargin >= 0.5 ? 'text-emerald-400' : 'text-white'}`}>
+                                    {stock.grossMargin ? formatPercent(stock.grossMargin, 0) : '—'}
+                                </p>
                             </div>
                             <div className="bg-slate-800/30 rounded-xl p-2 text-center">
                                 <p className="text-[9px] text-slate-600">Operating</p>
-                                <p className="text-sm font-bold text-white">{stock.operatingMargin ? formatPercent(stock.operatingMargin, 0) : '—'}</p>
+                                <p className={`text-sm font-bold ${stock.operatingMargin > 0 ? 'text-white' : 'text-rose-400'}`}>
+                                    {stock.operatingMargin !== null ? formatPercent(stock.operatingMargin, 0) : '—'}
+                                </p>
                             </div>
                             <div className="bg-slate-800/30 rounded-xl p-2 text-center">
                                 <p className="text-[9px] text-slate-600">Net</p>
-                                <p className="text-sm font-bold text-white">{stock.netMargin ? formatPercent(stock.netMargin, 0) : '—'}</p>
+                                <p className={`text-sm font-bold ${stock.netMargin > 0 ? 'text-white' : 'text-rose-400'}`}>
+                                    {stock.netMargin !== null ? formatPercent(stock.netMargin, 0) : '—'}
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Runway */}
+                    {/* Cash Runway - Important for turnaround stocks */}
                     {stock.cashRunwayQuarters !== null && stock.cashRunwayQuarters !== undefined && (
-                        <div className="bg-slate-800/30 rounded-xl p-3 flex justify-between items-center">
+                        <div className={`rounded-xl p-3 flex justify-between items-center ${isTurnaround ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-slate-800/30'
+                            }`}>
                             <span className="text-xs text-slate-400">Cash Runway</span>
-                            <span className={`text-sm font-bold ${stock.cashRunwayQuarters < 4 ? 'text-rose-400' : 'text-slate-300'}`}>
+                            <span className={`text-sm font-bold ${stock.cashRunwayQuarters < 4 ? 'text-rose-400' :
+                                    stock.cashRunwayQuarters < 8 ? 'text-yellow-400' : 'text-emerald-400'
+                                }`}>
                                 {stock.cashRunwayQuarters >= 99 ? '∞ (Positive)' : `${stock.cashRunwayQuarters.toFixed(1)} Quarters`}
                             </span>
                         </div>
@@ -121,9 +221,9 @@ export default function StockOverviewModal({ stock, onClose }: StockOverviewModa
                     {/* Warnings */}
                     {stock.epsWarnings && stock.epsWarnings.length > 0 && (
                         <div className="space-y-2">
-                            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Risks</h3>
+                            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Notes</h3>
                             <div className="flex flex-wrap gap-2">
-                                {stock.epsWarnings.map((w, i) => (
+                                {stock.epsWarnings.map((w: string, i: number) => (
                                     <span key={i} className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
                                         {w}
                                     </span>
