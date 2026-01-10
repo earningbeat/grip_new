@@ -462,7 +462,7 @@ export default function Home() {
                 </div>
                 <p className="text-xs text-slate-400 mb-2">나스닥 100 벤치마크</p>
                 <p className="text-xs text-slate-500">
-                  평균 성장률 <span className="text-purple-400">22.7%</span> 이상만 분석 대상.
+                  성장률 <span className="text-purple-400 font-semibold">{metadata?.benchmarkGrowth || 0}%</span> & P/E <span className="text-purple-400 font-semibold">{metadata?.benchmarkPe || 0}x</span> 이상 대상.
                 </p>
               </div>
             </div>

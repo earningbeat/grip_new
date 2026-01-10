@@ -87,10 +87,9 @@ export interface StockData {
 export interface RankingMetadata {
     totalProcessed: number;
     totalExcluded: number;
+    benchmarkGrowth?: number;
+    benchmarkPe?: number;
     timestamp: string;
-    isCached?: boolean;
-    excludedReasons?: Record<string, number>;
-    processingTimeMs?: number;
 }
 
 export interface RankingResponse {

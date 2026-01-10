@@ -110,12 +110,19 @@ export async function GET() {
             ? top100ByMarketCap.reduce((sum: number, s: any) => sum + (s.epsGrowthRate || 0), 0) / top100ByMarketCap.length
             : 15; // 기본값 15%
 
+        const benchmarkPe = top100ByMarketCap.length > 0
+            ? top100ByMarketCap.reduce((sum: number, s: any) => sum + (s.ttmPe || 0), 0) / top100ByMarketCap.length
+            : 25; // 기본값 25x
+
         // 3. Quality Filter: TTM EPS > 0 AND growth rate > benchmark AND valid PEG
+        // + New Premium Filter: TTM P/E > benchmark P/E (Exclude "Value Traps" or unappreciated growth)
         const qualityFiltered = enrichedStocks
             .filter((s: any) =>
                 s.ttmEps > 0 &&
                 s.epsGrowthRate !== null &&
                 s.epsGrowthRate > benchmarkGrowth &&
+                s.ttmPe !== null &&
+                s.ttmPe > benchmarkPe && // Premium Filter
                 s.peg !== null &&
                 s.peg > 0 &&
                 s.peg < 10 && // PEG 10 초과는 비정상
@@ -160,6 +167,7 @@ export async function GET() {
                 totalQualified: qualityFiltered.length,
                 totalExcluded: stocks.length - qualityFiltered.length,
                 benchmarkGrowth: Math.round(benchmarkGrowth * 10) / 10,
+                benchmarkPe: Math.round(benchmarkPe * 10) / 10,
                 timestamp: lastUpdated || new Date().toISOString(),
                 isCached: true
             }
