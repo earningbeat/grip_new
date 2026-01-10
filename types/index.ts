@@ -7,6 +7,7 @@
 
 export interface StockData {
     ticker: string;
+    symbol: string;
     name: string;
     sector: string;
     price: number;
@@ -33,19 +34,45 @@ export interface StockData {
     peg: number | null;                 // TTM P/E / EPS Growth Rate
     forwardPeg: number | null;          // Forward P/E / Forward EPS Growth
 
-    // 새 GRIP 점수 체계 (정규분포 기반)
-    pegScore: number | null;            // PEG 기반 점수 (1-10, 낮을수록 높은 점수)
-    gapScore: number | null;            // Gap Ratio 기반 점수 (1-10, 높을수록 높은 점수)
-    gripScore: number | null;           // pegScore + gapScore (2-20)
+    // 검색 UI용 재무 데이터
+    revenue?: number;
+    revenueGrowthYoY?: number | null;
+    operatingIncome?: number;
+    netIncome?: number;
+    grossMargin?: number | null;
+    operatingMargin?: number | null;
+    netMargin?: number | null;
+
+    // 점수 체계
+    pegScore: number | null;
+    gapScore: number | null;
+    gripScore: number | null;
     gripStatus: GripStatus;
 
     // EPS 품질 체크
-    isQualityGrowth: boolean;           // 일시적 EPS 급증 아님
-    epsWarnings: string[];              // EPS 품질 경고 메시지
+    isQualityGrowth: boolean;
+    epsWarnings: string[];
 
-    // High-Beta 전용 (GRIP-TS)
-    turnaroundDelta: number | null;     // NTM EPS - TTM EPS (변화량)
-    turnaroundScore: number | null;     // 턴어라운드 점수 (1-10)
+    // 레거시 UI 호환 필드
+    isEligible?: boolean;
+    isQuality?: boolean;
+    warnings?: string[];
+    exchange?: string;
+
+    // High-Beta / 턴어라운드 지표
+    isTurnaround: boolean;
+    turnaroundDelta: number | null;
+    turnaroundScore: number | null;           // 레거시 호환
+    tGripScore: number | null;                // 신규 T-GRIP
+
+    // Cash & Runway
+    cashRunwayQuarters: number | null;
+
+    // 추가 메타 (CAGR, Upgrades)
+    cagr3Y?: number | null;
+    upgradeCount6M?: number;
+    beta?: number | null;
+    industry?: string;
 
     // 메타
     fiscalYearEndMonth: number;
@@ -55,14 +82,10 @@ export interface StockData {
 export interface RankingMetadata {
     totalProcessed: number;
     totalExcluded: number;
-    excludedReasons: Record<string, number>;
     timestamp: string;
-    processingTimeMs: number;
-    isDemo?: boolean;
-
-    // 벤치마크 정보
-    benchmarkPe?: number;
-    benchmarkGrowth?: number;
+    isCached?: boolean;
+    excludedReasons?: Record<string, number>;
+    processingTimeMs?: number;
 }
 
 export interface RankingResponse {
@@ -73,7 +96,7 @@ export interface RankingResponse {
 }
 
 // GRIP 상태 정의
-export type GripStatus = 'high' | 'potential' | 'watch' | null;
+export type GripStatus = 'high' | 'potential' | 'watch' | 'turnaround' | null;
 
 // GRIP 점수 등급
 export function getGripGrade(gripScore: number | null): string {

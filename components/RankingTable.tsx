@@ -171,7 +171,7 @@ export default function RankingTable({ data, isLoading }: RankingTableProps) {
                                         {stock.ticker}
                                     </span>
                                     {!stock.isQualityGrowth && (
-                                        <span className="text-amber-400" title={stock.epsWarnings.join(', ')}>⚠</span>
+                                        <span className="text-amber-400" title={stock.epsWarnings?.join(', ') || 'EPS 품질 주의'}>⚠</span>
                                     )}
                                 </div>
                                 <span className="block text-xs text-slate-500 xl:hidden truncate max-w-[100px]">
@@ -209,10 +209,10 @@ export default function RankingTable({ data, isLoading }: RankingTableProps) {
                             </td>
                             <td className="px-3 py-3 text-right font-mono text-xs hidden lg:table-cell">
                                 <span className={`px-2 py-1 rounded ${stock.gapRatio && stock.gapRatio > 1.5
-                                        ? 'bg-purple-500/20 text-purple-400'
-                                        : stock.gapRatio && stock.gapRatio > 1.3
-                                            ? 'bg-cyan-500/20 text-cyan-400'
-                                            : 'text-slate-400'
+                                    ? 'bg-purple-500/20 text-purple-400'
+                                    : stock.gapRatio && stock.gapRatio > 1.3
+                                        ? 'bg-cyan-500/20 text-cyan-400'
+                                        : 'text-slate-400'
                                     }`}>
                                     {stock.gapRatio ? stock.gapRatio.toFixed(2) : '—'}
                                 </span>

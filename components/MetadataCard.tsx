@@ -74,19 +74,19 @@ export default function MetadataCard({ metadata, isLoading, onRefresh, isRefresh
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Processed</p>
-                    <p className="text-lg font-semibold text-white">{metadata.totalProcessed.toLocaleString()}</p>
+                    <p className="text-lg font-semibold text-white">{(metadata.totalProcessed || 0).toLocaleString()}</p>
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Excluded</p>
-                    <p className="text-lg font-semibold text-amber-400">{metadata.totalExcluded.toLocaleString()}</p>
+                    <p className="text-lg font-semibold text-amber-400">{(metadata.totalExcluded || 0).toLocaleString()}</p>
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Processing Time</p>
-                    <p className="text-lg font-semibold text-white">{(metadata.processingTimeMs / 1000).toFixed(1)}s</p>
+                    <p className="text-lg font-semibold text-white">{((metadata.processingTimeMs || 0) / 1000).toFixed(1)}s</p>
                 </div>
             </div>
 
-            {Object.keys(metadata.excludedReasons).length > 0 && (
+            {metadata.excludedReasons && Object.keys(metadata.excludedReasons).length > 0 && (
                 <div className="mt-4 pt-4 border-t border-slate-700/50">
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Exclusion Reasons</p>
                     <div className="flex flex-wrap gap-2">

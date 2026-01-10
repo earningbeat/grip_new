@@ -22,27 +22,11 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<{
     success: boolean;
-    data?: {
-      ticker: string;
-      name: string;
-      sector: string;
-      exchange: string;
-      price: number;
-      marketCap: number;
-      ttmEps: number;
-      fy1Eps: number | null;
-      fy2Eps: number | null;
-      ntmEps: number | null;
-      ttmPe: number | null;
-      forwardPe: number | null;
-      fy2Pe: number | null;
-      gapRatio: number | null;
-      epsGrowthRate: number | null;
-      peg: number | null;
-      isEligible: boolean;
-      excludeReason: string | null;
-      warnings: string[];
-      analystCount: number;
+    data?: StockData;
+    metadata?: {
+      symbol: string;
+      isCached: boolean;
+      timestamp: string;
     };
     error?: string;
   } | null>(null);
@@ -91,7 +75,8 @@ export default function Home() {
   };
 
   // 티커 검색 핸들러 (API 호출)
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent default form submission behavior
     if (!searchTicker.trim()) {
       setSearchResult(null);
       return;
@@ -140,7 +125,7 @@ export default function Home() {
                   type="text"
                   value={searchTicker}
                   onChange={(e) => setSearchTicker(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(e as any)}
                   placeholder="티커 검색 (예: NVDA)"
                   className="w-40 md:w-56 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
                 />
@@ -171,107 +156,177 @@ export default function Home() {
         )}
 
         {searchResult && !isSearching && (
-          <div className={`mb-6 rounded-xl border p-4 animate-fade-in ${searchResult.success && searchResult.data?.isEligible
-              ? 'border-emerald-500/30 bg-emerald-500/10'
+          <div className={`mb-6 rounded-2xl border p-6 animate-fade-in backdrop-blur-sm ${searchResult.success && searchResult.data?.isTurnaround
+            ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-orange-500/10'
+            : searchResult.success && (searchResult.data?.isEligible || searchResult.data?.isQuality)
+              ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10'
               : searchResult.success
-                ? 'border-amber-500/30 bg-amber-500/10'
+                ? 'border-slate-500/40 bg-slate-800/50'
                 : 'border-red-500/30 bg-red-500/10'
             }`}>
             {searchResult.success && searchResult.data ? (
-              <div>
-                {/* 헤더 */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-white">{searchResult.data.ticker}</span>
-                    <span className="text-slate-400">{searchResult.data.name}</span>
-                    <span className="px-2 py-1 text-xs rounded bg-slate-700 text-slate-300">{searchResult.data.exchange}</span>
-                    <span className="px-2 py-1 text-xs rounded bg-slate-700 text-slate-300">{searchResult.data.sector}</span>
-                  </div>
-                  <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
-                </div>
-
-                {/* 제외/경고 표시 */}
-                {!searchResult.data.isEligible && searchResult.data.excludeReason && (
-                  <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/30">
-                    <span className="text-red-400 font-medium">⚠ 제외 사유: </span>
-                    <span className="text-red-300">{searchResult.data.excludeReason}</span>
-                  </div>
-                )}
-
-                {searchResult.data.warnings.length > 0 && (
-                  <div className="mb-4 p-3 rounded-lg bg-amber-500/20 border border-amber-500/30">
-                    <span className="text-amber-400 font-medium">경고: </span>
-                    {searchResult.data.warnings.map((w, i) => (
-                      <span key={i} className="text-amber-300 ml-2">• {w}</span>
-                    ))}
-                  </div>
-                )}
-
-                {/* 지표 그리드 */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">Price</p>
-                    <p className="text-lg font-mono text-white">${searchResult.data.price.toFixed(2)}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">Market Cap</p>
-                    <p className="text-lg font-mono text-white">${(searchResult.data.marketCap / 1e9).toFixed(1)}B</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">TTM EPS</p>
-                    <p className={`text-lg font-mono ${searchResult.data.ttmEps > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {searchResult.data.ttmEps.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">NTM EPS</p>
-                    <p className={`text-lg font-mono ${searchResult.data.ntmEps && searchResult.data.ntmEps > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                      {searchResult.data.ntmEps?.toFixed(2) ?? '—'}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">Gap Ratio</p>
-                    <p className={`text-lg font-mono ${searchResult.data.gapRatio && searchResult.data.gapRatio > 1.3 ? 'text-purple-400' : 'text-slate-400'}`}>
-                      {searchResult.data.gapRatio?.toFixed(3) ?? '—'}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">PEG</p>
-                    <p className={`text-lg font-mono ${searchResult.data.peg && searchResult.data.peg < 1.5 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                      {searchResult.data.peg?.toFixed(2) ?? '—'}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">EPS Growth</p>
-                    <p className={`text-lg font-mono ${searchResult.data.epsGrowthRate && searchResult.data.epsGrowthRate > 22.7 ? 'text-cyan-400' : 'text-slate-400'}`}>
-                      {searchResult.data.epsGrowthRate?.toFixed(1) ?? '—'}%
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">Fwd P/E</p>
-                    <p className="text-lg font-mono text-slate-300">
-                      {searchResult.data.forwardPe?.toFixed(1) ?? '—'}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-800/50">
-                    <p className="text-xs text-slate-500 mb-1">Analyst #</p>
-                    <p className={`text-lg font-mono ${searchResult.data.analystCount >= 5 ? 'text-white' : 'text-amber-400'}`}>
-                      {searchResult.data.analystCount}
-                    </p>
-                  </div>
-                </div>
-
-                {/* GRIP 지표 요약 */}
-                {searchResult.data.isEligible && (
-                  <div className="mt-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-                    <span className="text-cyan-400 font-medium">✓ GRIP 분석 대상 </span>
-                    <span className="text-slate-300">
-                      - Gap Ratio: {searchResult.data.gapRatio?.toFixed(2)},
-                      PEG: {searchResult.data.peg?.toFixed(2)},
-                      성장률: {searchResult.data.epsGrowthRate?.toFixed(1)}%
+              <div className="flex gap-6">
+                {/* 왼쪽: GRIP Score 동그라미 */}
+                <div className="flex-shrink-0 flex flex-col items-center">
+                  <div className={`w-28 h-28 rounded-full flex flex-col items-center justify-center ${searchResult.data.isTurnaround
+                    ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30'
+                    : (searchResult.data.isEligible || searchResult.data.isQuality)
+                      ? 'bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-lg shadow-emerald-500/30'
+                      : 'bg-gradient-to-br from-slate-600 to-slate-700'
+                    }`}>
+                    <span className="text-3xl font-bold text-white">
+                      {searchResult.data.isTurnaround
+                        ? searchResult.data.tGripScore?.toFixed(1) ?? '—'
+                        : searchResult.data.gripScore?.toFixed(1) ?? '—'}
+                    </span>
+                    <span className="text-xs font-medium text-white/80">
+                      {searchResult.data.isTurnaround ? 'T-GRIP' : 'GRIP'}
                     </span>
                   </div>
-                )}
+                  <span className="mt-2 text-xs text-slate-500">
+                    {searchResult.data.isTurnaround ? '턴어라운드 점수' : 'Quality 점수'}
+                  </span>
+                </div>
+
+                {/* 오른쪽: 상세 정보 */}
+                <div className="flex-1">
+                  {/* 헤더 */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="text-2xl font-bold text-white">{searchResult.data.ticker}</span>
+                        <span className="text-lg text-slate-300">{searchResult.data.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-300">{searchResult.data.exchange}</span>
+                        <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-300">{searchResult.data.sector}</span>
+                        <span className="px-2 py-0.5 rounded bg-slate-700/50 text-slate-400">{searchResult.data.industry}</span>
+                        {searchResult.data.beta && (
+                          <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">β {searchResult.data.beta.toFixed(2)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <button onClick={() => setSearchResult(null)} className="text-slate-400 hover:text-white text-xl transition-colors">✕</button>
+                  </div>
+
+                  {/* 경고/상태 표시 */}
+                  {searchResult.data.warnings && searchResult.data.warnings.length > 0 && (
+                    <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <div className="flex flex-wrap gap-2">
+                        {searchResult.data.warnings.map((w, i) => (
+                          <span key={i} className="text-xs text-amber-400">⚠ {w}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 핵심 지표 그리드 */}
+                  <div className="grid grid-cols-4 md:grid-cols-5 gap-3 mb-4">
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Price</p>
+                      <p className="text-lg font-mono font-bold text-white">${searchResult.data.price.toFixed(2)}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Market Cap</p>
+                      <p className="text-lg font-mono font-bold text-white">
+                        {searchResult.data.marketCap >= 1e12
+                          ? `$${(searchResult.data.marketCap / 1e12).toFixed(2)}T`
+                          : `$${(searchResult.data.marketCap / 1e9).toFixed(1)}B`}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">TTM P/E</p>
+                      <p className={`text-lg font-mono font-bold ${searchResult.data.ttmPe && searchResult.data.ttmPe > 0 ? 'text-white' : 'text-red-400'}`}>
+                        {searchResult.data.ttmPe?.toFixed(1) ?? '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Fwd P/E</p>
+                      <p className="text-lg font-mono font-bold text-cyan-400">{searchResult.data.forwardPe?.toFixed(1) ?? '—'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                      <p className="text-[10px] text-purple-300 uppercase tracking-wide">Gap Ratio</p>
+                      <p className={`text-lg font-mono font-bold ${searchResult.data.gapRatio && searchResult.data.gapRatio > 1.2 ? 'text-purple-400' : 'text-white'}`}>
+                        {searchResult.data.gapRatio?.toFixed(2) ?? '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 재무 정보 섹션 */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-700/30">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Revenue (TTM)</p>
+                      <p className="text-base font-mono text-white">
+                        {searchResult.data.revenue
+                          ? `$${(searchResult.data.revenue / 1e9).toFixed(1)}B`
+                          : '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-700/30">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Operating Income</p>
+                      <p className={`text-base font-mono ${searchResult.data.operatingIncome && searchResult.data.operatingIncome > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {searchResult.data.operatingIncome
+                          ? `$${(searchResult.data.operatingIncome / 1e9).toFixed(1)}B`
+                          : '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-700/30">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Net Income</p>
+                      <p className={`text-base font-mono ${searchResult.data.netIncome && searchResult.data.netIncome > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {searchResult.data.netIncome
+                          ? `$${(searchResult.data.netIncome / 1e9).toFixed(1)}B`
+                          : '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-700/30">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Net Margin</p>
+                      <p className={`text-base font-mono ${searchResult.data.netMargin && searchResult.data.netMargin > 10 ? 'text-emerald-400' : searchResult.data.netMargin && searchResult.data.netMargin > 0 ? 'text-white' : 'text-red-400'}`}>
+                        {searchResult.data.netMargin?.toFixed(1) ?? '—'}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* EPS & 성장률 섹션 */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">TTM EPS</p>
+                      <p className={`text-base font-mono font-bold ${searchResult.data.ttmEps > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        ${searchResult.data.ttmEps.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">NTM EPS (Est)</p>
+                      <p className={`text-base font-mono font-bold ${searchResult.data.ntmEps && searchResult.data.ntmEps > 0 ? 'text-cyan-400' : 'text-slate-400'}`}>
+                        ${searchResult.data.ntmEps?.toFixed(2) ?? '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">CAGR (3Y)</p>
+                      <p className={`text-base font-mono font-bold ${searchResult.data.cagr3Y && searchResult.data.cagr3Y > 20 ? 'text-emerald-400' : 'text-white'}`}>
+                        {searchResult.data.cagr3Y?.toFixed(1) ?? '—'}%
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">PEG</p>
+                      <p className={`text-base font-mono font-bold ${searchResult.data.peg && searchResult.data.peg < 1.5 ? 'text-emerald-400' : 'text-white'}`}>
+                        {searchResult.data.peg?.toFixed(2) ?? '—'}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                      <p className="text-[10px] text-purple-300 uppercase tracking-wide">Upgrades (6M)</p>
+                      <p className="text-base font-mono font-bold text-white flex items-center gap-1">
+                        {searchResult.data.upgradeCount6M ?? 0}회
+                        {(searchResult.data.upgradeCount6M ?? 0) > 0 && <span className="text-sm">🚀</span>}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 분석 정보 */}
+                  <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                    <span>FMP API · 10-Q Data + CAGR Calculation</span>
+                    <span>Updated: {searchResult.data?.lastUpdated ? new Date(searchResult.data.lastUpdated).toLocaleString('ko-KR') : 'N/A'}</span>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex items-start justify-between">
