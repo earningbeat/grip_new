@@ -160,11 +160,44 @@ export async function analyzeStock(
             gapScore = Math.round(gapScore * 10) / 10;
         }
 
-        // GRIP Score = PEG Score + GAP Score (0-10)
+        // 9. GRIP & T-GRIP Scores
         const gripScore = Math.round((pegScore + gapScore) * 10) / 10;
-
-        // T-GRIP Score for turnaround candidates
         const tGripScore = calculateTGripScore(ttmEps, ntmEps, runway, revGrowth);
+
+        // --- Data Integrity Check (Sanity Check) ---
+        // Filter out stocks with impossible or highly suspicious data to prevent UI corruption
+        const mktCap = quote.marketCap || profile?.mktCap || 0;
+
+        // 1. EPS > Price (99% data corruption or unit error in API)
+        // Note: price * 1.5 allows for some extreme cases but caps insane errors like $420 EPS for $18 stock
+        if (ttmEps > price && price > 0) {
+            console.warn(`[SANITY CHECK] Skipping ${symbol}: TTM EPS ($${ttmEps.toFixed(2)}) is higher than Price ($${price.toFixed(2)})`);
+            return null;
+        }
+
+        // 2. Net Income > Revenue (Mathematically impossible)
+        if (ttmRev > 0 && Math.abs(ttmNetInc) > ttmRev * 1.5) {
+            // Allowing 1.5x for net income vs revenue to account for one-time gains, but not insane unit errors
+            if (ttmNetInc > ttmRev * 10) {
+                console.warn(`[SANITY CHECK] Skipping ${symbol}: Net Income ($${ttmNetInc}) is 10x Revenue ($${ttmRev})`);
+                return null;
+            }
+        }
+
+        // 3. P/E < 0.5x for profitable companies (Almost always a data error in automated parsing)
+        if (ttmEps > 0 && price > 0) {
+            const pe = price / ttmEps;
+            if (pe < 0.5) {
+                console.warn(`[SANITY CHECK] Skipping ${symbol}: Impossible P/E ratio (${pe.toFixed(2)}x)`);
+                return null;
+            }
+        }
+
+        // 4. Net Income > Market Cap (Extremely suspicious)
+        if (mktCap > 0 && ttmNetInc > mktCap * 2) {
+            console.warn(`[SANITY CHECK] Skipping ${symbol}: Net Income ($${ttmNetInc}) > 2x Market Cap ($${mktCap})`);
+            return null;
+        }
 
         return {
             ticker: symbol,

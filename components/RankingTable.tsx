@@ -252,10 +252,10 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                                     </span>
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-xs text-slate-400 hidden lg:table-cell">
-                                    {stock.ttmEps > 0 && stock.price ? (stock.price / stock.ttmEps).toFixed(1) : '—'}x
+                                    {stock.ttmEps > 0 && stock.ttmEps < stock.price && stock.price ? (stock.price / stock.ttmEps).toFixed(1) : '—'}x
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-xs text-cyan-400 hidden xl:table-cell">
-                                    {stock.ntmEps > 0 && stock.price ? (stock.price / stock.ntmEps).toFixed(1) : '—'}x
+                                    {stock.ntmEps > 0 && stock.ntmEps < stock.price && stock.price ? (stock.price / stock.ntmEps).toFixed(1) : '—'}x
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-white text-xs">
                                     ${formatNumber(stock.price)}

@@ -8,29 +8,36 @@ export interface ScoringMetrics {
     gapRatio: number | null;
 }
 
+export interface GripScoreResult {
+    pegScore: number;
+    gapScore: number;
+    totalScore: number;
+}
+
 /**
  * GRIP Score (Quality Stocks용)
  * PEG 점수 (0-5) + GAP 점수 (0-5) = 0-10 범위
  */
-export function calculateGripScore(metrics: ScoringMetrics): number {
+export function calculateGripScore(metrics: ScoringMetrics): GripScoreResult {
     const { peg, gapRatio } = metrics;
 
     // 1. PEG Score (0-5점)
-    // PEG 0.5 이하: 5점, PEG 2.5 이상: 0점
     let pegScore = 0;
     if (peg !== null && peg > 0) {
         pegScore = Math.max(0, Math.min(5, (2.5 - peg) * 2.5));
     }
 
     // 2. GAP Score (0-5점)
-    // Gap Ratio 1.5 이상: 5점, 1.0 이하: 0점
     let gapScore = 0;
     if (gapRatio !== null && gapRatio > 0) {
         gapScore = Math.max(0, Math.min(5, (gapRatio - 1) * 10));
     }
 
-    // 최종 점수 (0-10)
-    return Math.round((pegScore + gapScore) * 10) / 10;
+    return {
+        pegScore: Math.round(pegScore * 10) / 10,
+        gapScore: Math.round(gapScore * 10) / 10,
+        totalScore: Math.round((pegScore + gapScore) * 10) / 10
+    };
 }
 
 /**
