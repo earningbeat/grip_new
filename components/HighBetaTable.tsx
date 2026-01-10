@@ -10,7 +10,7 @@ interface HighBetaTableProps {
     onSelectStock?: (stock: StockData) => void;
 }
 
-type SortKey = 'tGripScore' | 'price' | 'marketCap' | 'revenue' | 'evRevenue' | 'psr' | 'cagr3Y' | 'ruleOf40' | 'ttmEps' | 'ntmEps' | 'absoluteGapRatio' | 'freeCashFlow' | 'cashAndShortTermInvestments' | 'cashRunwayQuarters';
+type SortKey = 'tGripScore' | 'price' | 'marketCap' | 'revenue' | 'evRevenue' | 'evGrossProfit' | 'grossMargin' | 'psr' | 'cagr3Y' | 'ruleOf40' | 'ttmEps' | 'ntmEps' | 'absoluteGapRatio' | 'freeCashFlow' | 'burnRate' | 'cashAndShortTermInvestments' | 'cashRunwayQuarters';
 type SortOrder = 'asc' | 'desc';
 
 // Exchange Badge
@@ -126,6 +126,14 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
                             EV/REV <SortArrow active={sortKey === 'evRevenue'} order={sortOrder} />
                         </th>
 
+                        <th className={headerClass('evGrossProfit')} onClick={() => handleSort('evGrossProfit')}>
+                            <span className="text-amber-400">EV/GP</span> <SortArrow active={sortKey === 'evGrossProfit'} order={sortOrder} />
+                        </th>
+
+                        <th className={headerClass('grossMargin')} onClick={() => handleSort('grossMargin')}>
+                            <span className="text-emerald-400">GM%</span> <SortArrow active={sortKey === 'grossMargin'} order={sortOrder} />
+                        </th>
+
                         <th className={headerClass('psr')} onClick={() => handleSort('psr')}>
                             PSR <SortArrow active={sortKey === 'psr'} order={sortOrder} />
                         </th>
@@ -151,7 +159,11 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
                         </th>
 
                         <th className={headerClass('freeCashFlow')} onClick={() => handleSort('freeCashFlow')}>
-                            CASHFLOW <SortArrow active={sortKey === 'freeCashFlow'} order={sortOrder} />
+                            FCF <SortArrow active={sortKey === 'freeCashFlow'} order={sortOrder} />
+                        </th>
+
+                        <th className={headerClass('burnRate')} onClick={() => handleSort('burnRate')}>
+                            <span className="text-rose-400">BURN/M</span> <SortArrow active={sortKey === 'burnRate'} order={sortOrder} />
                         </th>
 
                         <th className={headerClass('cashAndShortTermInvestments')} onClick={() => handleSort('cashAndShortTermInvestments')}>
@@ -202,6 +214,12 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
                             <td className="px-3 py-3 text-right font-mono text-cyan-400">
                                 {stock.evRevenue ? stock.evRevenue.toFixed(1) + 'x' : '—'}
                             </td>
+                            <td className="px-3 py-3 text-right font-mono text-amber-400">
+                                {stock.evGrossProfit ? stock.evGrossProfit.toFixed(1) + 'x' : '—'}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono text-emerald-400">
+                                {stock.grossMargin ? formatPercent(stock.grossMargin) : '—'}
+                            </td>
                             <td className="px-3 py-3 text-right font-mono text-slate-300">
                                 {stock.psr ? stock.psr.toFixed(1) + 'x' : '—'}
                             </td>
@@ -224,6 +242,9 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
                             </td>
                             <td className="px-3 py-3 text-right font-mono text-slate-400">
                                 {formatMarketCap(stock.freeCashFlow)}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono text-rose-400 font-bold">
+                                {stock.burnRate ? formatMarketCap(stock.burnRate) + '/mo' : '—'}
                             </td>
                             <td className="px-3 py-3 text-right font-mono text-slate-400">
                                 {formatMarketCap(stock.cashAndShortTermInvestments)}
