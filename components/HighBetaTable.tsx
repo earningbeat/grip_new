@@ -1,39 +1,57 @@
 'use client';
 
 import { StockData } from '@/types';
-import { formatNumber, formatPercent } from '@/lib/utils/format';
+import { formatNumber, formatMarketCap, formatPercent } from '@/lib/utils/format';
 
 interface HighBetaTableProps {
-    data: StockData[];
+    data: any[];
     isLoading?: boolean;
     onSelectStock?: (stock: StockData) => void;
 }
 
-// T-GRIP Score 색상 (0-10점)
-function getTGripScoreColor(score: number | null): string {
-    if (score === null) return 'text-slate-500';
-    if (score >= 8) return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-    if (score >= 6) return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-    if (score >= 4) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
-    return 'text-slate-400 bg-slate-700/30 border-slate-700/50';
+// Percentile 색상
+function getPctlColor(pctl: number | null): string {
+    if (pctl === null || pctl === undefined) return 'text-slate-500';
+    if (pctl >= 80) return 'text-emerald-400';
+    if (pctl >= 60) return 'text-amber-400';
+    if (pctl >= 40) return 'text-yellow-400';
+    return 'text-slate-400';
 }
 
-// Cash Runway 배지
-function getCashRunwayBadge(quarters: number | null): { text: string; color: string } {
-    if (quarters === null) return { text: '—', color: 'text-slate-500' };
-    if (quarters >= 99) return { text: '∞', color: 'text-emerald-400' };
-    if (quarters >= 6) return { text: `${quarters.toFixed(0)}Q`, color: 'text-emerald-400' };
-    if (quarters >= 3) return { text: `${quarters.toFixed(0)}Q`, color: 'text-cyan-400' };
-    if (quarters >= 1) return { text: `${quarters.toFixed(1)}Q`, color: 'text-yellow-400' };
-    return { text: `${quarters.toFixed(1)}Q`, color: 'text-rose-500' };
+// T-GRIP Score 색상
+function getTGripColor(score: number | null): string {
+    if (score === null) return 'text-slate-500';
+    if (score >= 8) return 'text-amber-400 bg-amber-500/20';
+    if (score >= 6) return 'text-orange-400 bg-orange-500/20';
+    if (score >= 4) return 'text-yellow-400 bg-yellow-500/20';
+    return 'text-slate-400 bg-slate-700/50';
+}
+
+// Rule of 40 색상
+function getR40Color(r40: number | null): string {
+    if (r40 === null) return 'text-slate-500';
+    if (r40 >= 40) return 'text-emerald-400';
+    if (r40 >= 30) return 'text-cyan-400';
+    if (r40 >= 20) return 'text-yellow-400';
+    return 'text-red-400';
+}
+
+// Cash Runway 색상
+function getRunwayColor(quarters: number | null): string {
+    if (quarters === null) return 'text-slate-500';
+    if (quarters >= 8) return 'text-emerald-400';
+    if (quarters >= 4) return 'text-cyan-400';
+    if (quarters >= 2) return 'text-yellow-400';
+    return 'text-red-400';
 }
 
 export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBetaTableProps) {
     if (isLoading) {
         return (
-            <div className="space-y-2 animate-pulse">
+            <div className="animate-pulse">
+                <div className="h-12 bg-amber-700/20 rounded-lg mb-2" />
                 {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="h-16 bg-slate-800/30 rounded-xl" />
+                    <div key={i} className="h-14 bg-amber-800/10 rounded-lg mb-1" />
                 ))}
             </div>
         );
@@ -41,120 +59,152 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
 
     if (data.length === 0) {
         return (
-            <div className="text-center py-16 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-700">
-                <p className="text-lg font-medium text-slate-400">턴어라운드 후보 없음</p>
-                <p className="text-slate-500 text-sm mt-1">필터: Rev Growth 12.5%+, GM 30%+</p>
+            <div className="text-center py-20 text-slate-400">
+                <p className="text-lg font-medium">턴어라운드 후보 없음</p>
+                <p className="text-sm mt-1">TTM EPS 음수 + 매출 존재 조건을 만족하는 종목이 없습니다</p>
             </div>
         );
     }
 
-    // Mobile Card Layout
     return (
-        <div className="space-y-2">
-            {/* Mobile Card List */}
+        <>
+            {/* Mobile Card Layout */}
             <div className="md:hidden space-y-2">
-                {data.map((stock, index) => {
-                    const tGrip = stock.tGripScore ?? stock.turnaroundScore;
-                    const cashBadge = getCashRunwayBadge(stock.cashRunwayQuarters ?? null);
-
-                    return (
-                        <div
-                            key={stock.ticker}
-                            onClick={() => onSelectStock?.(stock)}
-                            className="bg-slate-900/60 border border-amber-500/10 rounded-xl p-4 active:bg-slate-800/50 transition-all"
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-600 font-mono">#{index + 1}</span>
-                                        <span className="text-base font-black text-white">{stock.ticker}</span>
-                                        {stock.cashRunwayQuarters !== null && stock.cashRunwayQuarters < 3 && (
-                                            <span className="text-rose-500 text-xs animate-pulse">⚠</span>
-                                        )}
-                                    </div>
-                                    <p className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">{stock.name}</p>
+                {data.map((stock, index) => (
+                    <div
+                        key={stock.ticker}
+                        onClick={() => onSelectStock?.(stock)}
+                        className="bg-slate-900/60 border border-amber-500/20 rounded-xl p-4 active:bg-slate-800/50"
+                    >
+                        <div className="flex justify-between items-start mb-3">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-600">#{index + 1}</span>
+                                    <span className="font-bold text-white">{stock.ticker}</span>
+                                    {stock.cashRunwayQuarters && stock.cashRunwayQuarters < 4 && (
+                                        <span className="text-red-400 text-xs">⚠</span>
+                                    )}
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
-                                    <span className={`px-2 py-1 rounded-lg border text-sm font-black ${getTGripScoreColor(tGrip)}`}>
-                                        {tGrip ? tGrip.toFixed(1) : '—'}
-                                    </span>
-                                    <span className="text-[10px] text-slate-500">T-GRIP</span>
-                                </div>
+                                <p className="text-[10px] text-slate-500 truncate max-w-[150px]">{stock.name}</p>
                             </div>
-                            <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800/50">
-                                <div>
-                                    <p className="text-[9px] text-slate-600 uppercase">TTM EPS</p>
-                                    <p className="text-xs font-bold text-rose-400">${stock.ttmEps?.toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[9px] text-slate-600 uppercase">NTM EPS</p>
-                                    <p className="text-xs font-bold text-emerald-400">${stock.ntmEps?.toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[9px] text-slate-600 uppercase">Runway</p>
-                                    <p className={`text-xs font-bold ${cashBadge.color}`}>{cashBadge.text}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[9px] text-slate-600 uppercase">Price</p>
-                                    <p className="text-xs font-bold text-white">${formatNumber(stock.price)}</p>
-                                </div>
+                            <div className="text-right">
+                                <span className={`px-2 py-1 rounded text-sm font-bold ${getTGripColor(stock.tGripScore)}`}>
+                                    {stock.tGripScore?.toFixed(1) ?? '—'}
+                                </span>
+                                <p className="text-[10px] text-slate-500 mt-1">T-GRIP</p>
                             </div>
                         </div>
-                    );
-                })}
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                            <div>
+                                <p className="text-slate-600">Rule40</p>
+                                <p className={getR40Color(stock.ruleOf40)}>{stock.ruleOf40 !== null ? stock.ruleOf40.toFixed(0) : '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-600">EV/Rev</p>
+                                <p className="text-slate-300">{stock.evRevenue ? stock.evRevenue.toFixed(1) + 'x' : '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-600">GM</p>
+                                <p className="text-slate-300">{stock.grossMargin ? formatPercent(stock.grossMargin, 0) : '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-600">Runway</p>
+                                <p className={getRunwayColor(stock.cashRunwayQuarters)}>
+                                    {stock.cashRunwayQuarters ? `${stock.cashRunwayQuarters.toFixed(0)}Q` : '—'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block relative overflow-hidden rounded-2xl border border-amber-500/20 bg-slate-900/60 backdrop-blur-xl shadow-2xl">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-amber-950/20 border-b border-amber-500/20">
-                                <th className="px-3 py-3 text-[10px] font-bold text-slate-600 w-10 text-center">#</th>
-                                <th className="px-3 py-3 text-[10px] font-bold text-slate-300">TICKER</th>
-                                <th className="px-3 py-3 text-[10px] font-bold text-amber-500 text-center">T-GRIP</th>
-                                <th className="px-3 py-3 text-[10px] font-bold text-cyan-500 text-center hidden lg:table-cell">RUNWAY</th>
-                                <th className="px-3 py-3 text-[10px] font-bold text-rose-500 text-right">TTM EPS</th>
-                                <th className="px-3 py-3 text-[10px] font-bold text-emerald-500 text-right">NTM EPS</th>
-                                <th className="px-3 py-3 text-[10px] font-bold text-slate-300 text-right">PRICE</th>
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-amber-500/30 bg-slate-900/50 backdrop-blur-sm">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-amber-500/30 bg-amber-900/10">
+                            <th className="px-3 py-4 text-left font-semibold text-slate-300 w-12">#</th>
+                            <th className="px-3 py-4 text-left font-semibold text-slate-300">Ticker</th>
+                            <th className="px-3 py-4 text-center font-semibold text-amber-400">T-GRIP</th>
+                            <th className="px-3 py-4 text-center font-semibold text-emerald-400" title="Rule of 40 = Rev Growth % + Gross Margin %">
+                                Rule of 40
+                            </th>
+                            <th className="px-3 py-4 text-center font-semibold text-cyan-400 hidden lg:table-cell" title="Enterprise Value / Revenue">
+                                EV/Rev
+                            </th>
+                            <th className="px-3 py-4 text-center font-semibold text-purple-400 hidden lg:table-cell">
+                                Rev Growth
+                            </th>
+                            <th className="px-3 py-4 text-center font-semibold text-blue-400 hidden md:table-cell">
+                                Gross Margin
+                            </th>
+                            <th className="px-3 py-4 text-center font-semibold text-rose-400" title="Cash Runway (Quarters)">
+                                Runway
+                            </th>
+                            <th className="px-3 py-4 text-right font-semibold text-slate-300">
+                                Price
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.map((stock, index) => (
+                            <tr
+                                key={stock.ticker}
+                                onClick={() => onSelectStock?.(stock)}
+                                className="border-b border-slate-800/50 hover:bg-amber-500/5 transition-colors group cursor-pointer"
+                            >
+                                <td className="px-3 py-3 text-slate-500 font-mono text-xs">{index + 1}</td>
+                                <td className="px-3 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-white group-hover:text-amber-400 transition-colors">
+                                            {stock.ticker}
+                                        </span>
+                                        {stock.cashRunwayQuarters && stock.cashRunwayQuarters < 4 && (
+                                            <span className="text-red-400 text-xs" title="Low Cash Runway">⚠</span>
+                                        )}
+                                    </div>
+                                    <span className="block text-xs text-slate-500 truncate max-w-[120px]">
+                                        {stock.name}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                    <span className={`font-bold font-mono px-2 py-1 rounded text-sm ${getTGripColor(stock.tGripScore)}`}>
+                                        {stock.tGripScore?.toFixed(1) ?? '—'}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-3 text-center font-mono">
+                                    <span className={getR40Color(stock.ruleOf40)}>
+                                        {stock.ruleOf40 !== null ? stock.ruleOf40.toFixed(0) : '—'}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-3 text-center font-mono hidden lg:table-cell text-slate-300">
+                                    {stock.evRevenue ? stock.evRevenue.toFixed(1) + 'x' : '—'}
+                                </td>
+                                <td className="px-3 py-3 text-center font-mono hidden lg:table-cell">
+                                    <span className={stock.revenueGrowthYoY > 0.2 ? 'text-emerald-400' : 'text-slate-400'}>
+                                        {stock.revenueGrowthYoY !== null ? formatPercent(stock.revenueGrowthYoY, 0) : '—'}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-3 text-center font-mono hidden md:table-cell">
+                                    <span className={stock.grossMargin >= 0.5 ? 'text-purple-400' : 'text-slate-400'}>
+                                        {stock.grossMargin ? formatPercent(stock.grossMargin, 0) : '—'}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-3 text-center font-mono">
+                                    <span className={getRunwayColor(stock.cashRunwayQuarters)}>
+                                        {stock.cashRunwayQuarters !== null
+                                            ? (stock.cashRunwayQuarters >= 99 ? '∞' : `${stock.cashRunwayQuarters.toFixed(0)}Q`)
+                                            : '—'}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-3 text-right font-mono text-white text-xs">
+                                    ${formatNumber(stock.price)}
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/40">
-                            {data.map((stock, index) => {
-                                const tGrip = stock.tGripScore ?? stock.turnaroundScore;
-                                const cashBadge = getCashRunwayBadge(stock.cashRunwayQuarters ?? null);
-
-                                return (
-                                    <tr
-                                        key={stock.ticker}
-                                        onClick={() => onSelectStock?.(stock)}
-                                        className="group hover:bg-amber-500/[0.03] transition-all cursor-pointer"
-                                    >
-                                        <td className="px-3 py-3 text-center font-mono text-slate-600 text-[10px]">{index + 1}</td>
-                                        <td className="px-3 py-3">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">{stock.ticker}</span>
-                                                <span className="text-[9px] text-slate-500 truncate max-w-[100px]">{stock.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-3 text-center">
-                                            <span className={`inline-block px-2 py-1 rounded-lg border text-xs font-black ${getTGripScoreColor(tGrip)}`}>
-                                                {tGrip ? tGrip.toFixed(1) : '—'}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-3 text-center hidden lg:table-cell">
-                                            <span className={`text-xs font-bold ${cashBadge.color}`}>{cashBadge.text}</span>
-                                        </td>
-                                        <td className="px-3 py-3 text-right text-xs font-bold text-rose-400">${stock.ttmEps?.toFixed(2)}</td>
-                                        <td className="px-3 py-3 text-right text-xs font-bold text-emerald-400">${stock.ntmEps?.toFixed(2)}</td>
-                                        <td className="px-3 py-3 text-right text-xs font-bold text-white">${formatNumber(stock.price)}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-        </div>
+        </>
     );
 }
