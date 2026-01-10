@@ -29,8 +29,15 @@ function enrichTurnaroundStock(stock: StockData): StockData {
     // 2. Rule of 40 (Capped for stability)
     const ruleOf40 = calculateRuleOf40(revGrowth, grossMargin);
 
-    // 3. PSR
+    // 3. PSR (Price to Sales Ratio)
     const psr = (revenue > 0) ? marketCap / revenue : null;
+
+    // 4. EV/Revenue (Enterprise Value / Revenue)
+    // EV = Market Cap + Total Debt - Cash
+    const totalCash = stock.cashAndShortTermInvestments ?? 0;
+    // Since we don't have totalDebt directly, approximate EV as marketCap (common simplification)
+    // or use the evRevenue already calculated in analyzer.ts if available
+    const evRevenue = stock.evRevenue ?? (revenue > 0 ? marketCap / revenue : null);
 
     // T-GRIP Score (Refined for Turnaround)
     let tGripScore = 0;
@@ -51,11 +58,16 @@ function enrichTurnaroundStock(stock: StockData): StockData {
         else if (stock.cashRunwayQuarters >= 4) tGripScore += 1;
     }
 
+    // Fix cagr3Y if it's NaN or invalid
+    const cleanCagr3Y = (stock.cagr3Y !== null && !isNaN(stock.cagr3Y)) ? stock.cagr3Y : null;
+
     return {
         ...stock,
         absoluteGapRatio,
         ruleOf40,
         psr,
+        evRevenue,
+        cagr3Y: cleanCagr3Y,
         tGripScore: Math.round(tGripScore * 10) / 10
     };
 }

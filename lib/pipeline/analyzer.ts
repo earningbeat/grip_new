@@ -36,24 +36,26 @@ export async function analyzeStock(
         if ((!isNasdaq && !isNyse) || isOTC) return null;
 
         // 2. Fetch the rest only for eligible stocks
-        const [profileRes, incomeQRes, incomeARes, balanceRes, cashflowRes, gradesRes, ratiosTtmRes] = await Promise.all([
+        const [profileRes, incomeQRes, incomeARes, balanceRes, cashflowRes, gradesRes, ratiosTtmRes, keyMetricsRes] = await Promise.all([
             fetch(`${baseUrl}/profile?symbol=${symbol}&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=annual&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
             fetch(`${baseUrl}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
             fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`),
-            fetch(`${baseUrl}/ratios-ttm/${symbol}?apikey=${apiKey}`)  // Fetch pre-calculated PEG
+            fetch(`${baseUrl}/ratios-ttm/${symbol}?apikey=${apiKey}`),
+            fetch(`${baseUrl}/key-metrics-ttm/${symbol}?apikey=${apiKey}`)  // More accurate PEG
         ]);
 
-        const [profileData, incomeQ, incomeA, balanceData, cashFlowQ, grades, ratiosTtm] = await Promise.all([
+        const [profileData, incomeQ, incomeA, balanceData, cashFlowQ, grades, ratiosTtm, keyMetrics] = await Promise.all([
             profileRes.json().catch(() => null),
             incomeQRes.json().catch(() => null),
             incomeARes.json().catch(() => null),
             balanceRes.json().catch(() => null),
             cashflowRes.json().catch(() => null),
             gradesRes.json().catch(() => null),
-            ratiosTtmRes.json().catch(() => null)
+            ratiosTtmRes.json().catch(() => null),
+            keyMetricsRes.json().catch(() => null)
         ]);
 
         const profile = profileData?.[0];
@@ -144,14 +146,36 @@ export async function analyzeStock(
 
         const ntmEps = ttmEps * (1 + growthEst / 100);
         const price = quote.price || 0;
-        const ttmPe = ttmEps > 0 ? price / ttmEps : null;
+        // Use key-metrics PE if available for consistency
+        const keyMetricsPe = keyMetrics?.[0]?.peRatioTTM;
+        const ttmPe = keyMetricsPe && keyMetricsPe > 0 ? keyMetricsPe : (ttmEps > 0 ? price / ttmEps : null);
         const forwardPe = ntmEps > 0 ? price / ntmEps : null;
         const gapRatio = ttmEps > 0 ? ntmEps / ttmEps : null;
 
-        // PEG: Prefer FMP's pre-calculated value from ratios-ttm, fallback to our manual calculation
-        const fmpPeg = ratiosTtm?.[0]?.pegRatioTTM;
-        const manualPeg = (ttmPe && growthEst > 0) ? ttmPe / growthEst : null;
-        const peg = (fmpPeg && fmpPeg > 0 && fmpPeg < 50) ? fmpPeg : manualPeg; // Use FMP if valid
+        // PEG: Priority order - key-metrics > ratios-ttm > manual calculation
+        // Yahoo Finance uses 5-year expected EPS growth, so FMP's pre-calculated value is more accurate
+        const keyMetricsPeg = keyMetrics?.[0]?.pegRatioTTM;
+        const ratiosTtmPeg = ratiosTtm?.[0]?.pegRatioTTM;
+
+        // Manual PEG only valid when growth is reasonable (5-50%)
+        // Extreme growth rates produce misleadingly low PEG values
+        const isReasonableGrowth = growthEst >= 5 && growthEst <= 50;
+        const manualPeg = (ttmPe && isReasonableGrowth) ? ttmPe / growthEst : null;
+
+        // Debug logging for problematic stocks
+        if (symbol === 'PODD' || symbol === 'CWCO') {
+            console.log(`[PEG DEBUG] ${symbol}: keyMetricsPeg=${keyMetricsPeg}, ratiosTtmPeg=${ratiosTtmPeg}, manualPeg=${manualPeg}, growthEst=${growthEst}%`);
+        }
+
+        // Select best available PEG (filter out invalid/extreme values)
+        let peg: number | null = null;
+        if (keyMetricsPeg && keyMetricsPeg > 0 && keyMetricsPeg < 100) {
+            peg = keyMetricsPeg;
+        } else if (ratiosTtmPeg && ratiosTtmPeg > 0 && ratiosTtmPeg < 100) {
+            peg = ratiosTtmPeg;
+        } else if (manualPeg && manualPeg > 0 && manualPeg < 100) {
+            peg = manualPeg;
+        }
 
         // 8. Scoring (calculate individual scores for UI display)
         // PEG Score (0-5점): PEG 0.5 이하 = 5점, PEG 2.5 이상 = 0점
