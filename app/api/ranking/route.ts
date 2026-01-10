@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCachedGRIPData } from '@/lib/data/cache';
+import { calculateGripScore } from '@/lib/utils/scoring';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,23 +16,27 @@ function calculatePercentile(value: number, sortedArray: number[]): number {
 // Enrich stock with all calculable metrics
 function enrichStockData(stock: any) {
     const price = stock.price || 0;
-    const ttmEps = stock.ttmEps;
-    const ntmEps = stock.ntmEps;
-    const fy1Eps = stock.fy1Eps;
-    const fy2Eps = stock.fy2Eps;
+    const ttmEps = stock.ttmEps || 0;
+    const ntmEps = stock.ntmEps || 0;
+    const fy2Eps = stock.fy2Eps || 0;
     const peg = stock.peg;
-    const gapRatio = stock.gapRatio;
-    const epsGrowthRate = stock.epsGrowthRate;
 
-    // === Calculate missing PE ratios ===
-    const ttmPe = stock.ttmPe ?? (ttmEps > 0 ? price / ttmEps : null);
-    const forwardPe = stock.forwardPe ?? (ntmEps > 0 ? price / ntmEps : null);
-    const fy2Pe = (fy2Eps && fy2Eps > 0) ? price / fy2Eps : null;
+    // === Calculate PE ratios (Force refresh from price/eps) ===
+    const ttmPe = (ttmEps > 0) ? price / ttmEps : null;
+    const forwardPe = (ntmEps > 0) ? price / ntmEps : null;
+    const fy2Pe = (fy2Eps > 0) ? price / fy2Eps : null;
+
+    // === NEW: Gap Ratio Redefined as TTM P/E / NTM P/E ===
+    const gapRatio = (ttmPe && forwardPe && forwardPe > 0) ? ttmPe / forwardPe : null;
+
+    // === NEW: Net Margin Calculation (TTM based) ===
+    const revenue = stock.revenue || 0;
+    const netIncome = stock.netIncome || 0;
+    const netMargin = (revenue > 0) ? (netIncome / revenue) * 100 : 0;
 
     // Delta PE (TTM PE - Forward PE)
     const deltaPe = (ttmPe && forwardPe) ? ttmPe - forwardPe : null;
 
-    // === Calculate missing growth metrics ===
     // Forward EPS Growth (NTM to FY2)
     const forwardEpsGrowth = (ntmEps && fy2Eps && ntmEps > 0)
         ? ((fy2Eps / ntmEps) - 1) * 100
@@ -42,34 +47,16 @@ function enrichStockData(stock: any) {
         ? forwardPe / forwardEpsGrowth
         : null;
 
-    // === Calculate PEG Score (0-5) ===
-    let pegScore = stock.pegScore;
-    if (pegScore === null || pegScore === undefined) {
-        pegScore = 0;
-        if (peg !== null && peg > 0 && peg < 10) {
-            pegScore = Math.max(0, Math.min(5, (2.5 - peg) * 2.5));
-            pegScore = Math.round(pegScore * 10) / 10;
-        }
-    }
-
-    // === Calculate GAP Score (0-5) ===
-    let gapScore = stock.gapScore;
-    if (gapScore === null || gapScore === undefined) {
-        gapScore = 0;
-        if (gapRatio !== null && gapRatio > 0) {
-            gapScore = Math.max(0, Math.min(5, (gapRatio - 1) * 10));
-            gapScore = Math.round(gapScore * 10) / 10;
-        }
-    }
-
-    // GRIP Score
-    const gripScore = stock.gripScore ?? Math.round((pegScore + gapScore) * 10) / 10;
+    // === Calculate Scores using unified logic from scoring.ts ===
+    const { pegScore, gapScore, totalScore: gripScore } = calculateGripScore({ peg, gapRatio });
 
     return {
         ...stock,
         ttmPe,
         forwardPe,
         fy2Pe,
+        gapRatio,
+        netMargin,
         deltaPe,
         forwardEpsGrowth,
         forwardPeg,

@@ -17,20 +17,27 @@ export interface GripScoreResult {
 /**
  * GRIP Score (Quality Stocks용)
  * PEG 점수 (0-5) + GAP 점수 (0-5) = 0-10 범위
+ * 
+ * [PEG 법칙]
+ * 0.2면 만점(5점), 1.0이면 2.5점. (0.2 단위당 0.5~0.625점 배분)
+ * [GAP 법칙]
+ * Gap Ratio (TTM PE / NTM PE) 3.0 이상 만점(5점), 0.3 단위당 0.5점 배분
  */
 export function calculateGripScore(metrics: ScoringMetrics): GripScoreResult {
     const { peg, gapRatio } = metrics;
 
     // 1. PEG Score (0-5점)
+    // 0.2 -> 5.0, 1.0 -> 2.5 선형 보간 (기울기 -3.125)
     let pegScore = 0;
     if (peg !== null && peg > 0) {
-        pegScore = Math.max(0, Math.min(5, (2.5 - peg) * 2.5));
+        pegScore = Math.max(0, Math.min(5, 5.625 - (peg * 3.125)));
     }
 
     // 2. GAP Score (0-5점)
+    // 3.0 -> 5.0, 0.3 단위당 0.5점 (즉, GapRatio / 0.6)
     let gapScore = 0;
     if (gapRatio !== null && gapRatio > 0) {
-        gapScore = Math.max(0, Math.min(5, (gapRatio - 1) * 10));
+        gapScore = Math.max(0, Math.min(5, gapRatio / 0.6));
     }
 
     return {
