@@ -21,12 +21,16 @@ export async function analyzeStock(
 
         if (!quote) return null;
 
-        // Check basic eligibility before heavy lifting (NASDAQ + 시총 100M)
-        const isNasdaq = quote.exchange?.toUpperCase().includes('NASDAQ');
-        const isMinCap = quote.marketCap >= 100000000;
+        // Check basic eligibility: NASDAQ only (excl. OTC)
+        const exchangeUpper = (quote.exchange || '').toUpperCase();
+        const isNasdaq = exchangeUpper.includes('NASDAQ') ||
+            exchangeUpper === 'NGS' ||
+            exchangeUpper === 'NGM' ||
+            exchangeUpper === 'NCM';
+        const isOTC = exchangeUpper.includes('OTC') || exchangeUpper.includes('PINK');
 
-        // If not eligible, return null immediately (saving 5 tokens/seconds)
-        if (!isNasdaq || !isMinCap) return null;
+        // If not NASDAQ or is OTC, skip
+        if (!isNasdaq || isOTC) return null;
 
         // 2. Fetch the rest only for eligible stocks
         const [profileRes, incomeQRes, incomeARes, balanceRes, gradesRes] = await Promise.all([

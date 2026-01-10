@@ -109,35 +109,35 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">
+      <header className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-shrink-0">
+              <h1 className="text-lg sm:text-2xl font-bold">
                 <span className="gradient-text">GRIP</span>
-                <span className="text-slate-300 ml-2">Tracker</span>
+                <span className="text-slate-300 ml-1 sm:ml-2 hidden xs:inline">Tracker</span>
               </h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-[10px] sm:text-sm text-slate-500 hidden sm:block">
                 Growth Re-rating Inflection Point
               </p>
             </div>
 
             {/* 티커 검색 */}
-            <div className="flex items-center gap-2">
+            <div className="flex-1 max-w-[200px] sm:max-w-[240px]">
               <div className="relative">
                 <input
                   type="text"
                   value={searchTicker}
                   onChange={(e) => setSearchTicker(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch(e as any)}
-                  placeholder="티커 검색 (예: NVDA)"
-                  className="w-40 md:w-56 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="Search ticker"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                 />
                 <button
                   onClick={handleSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-400 transition-colors p-1"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </button>

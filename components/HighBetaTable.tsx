@@ -1,7 +1,7 @@
 'use client';
 
 import { StockData } from '@/types';
-import { formatNumber, formatMarketCap, formatPercent } from '@/lib/utils/format';
+import { formatNumber, formatPercent } from '@/lib/utils/format';
 
 interface HighBetaTableProps {
     data: StockData[];
@@ -20,20 +20,19 @@ function getTGripScoreColor(score: number | null): string {
 
 // Cash Runway 배지
 function getCashRunwayBadge(quarters: number | null): { text: string; color: string } {
-    if (quarters === null) return { text: '—', color: 'bg-slate-700/30 text-slate-500' };
-    if (quarters >= 99) return { text: '∞', color: 'bg-emerald-500/10 text-emerald-400' };
-    if (quarters >= 6) return { text: `${quarters.toFixed(0)}Q`, color: 'bg-emerald-500/10 text-emerald-400' };
-    if (quarters >= 3) return { text: `${quarters.toFixed(0)}Q`, color: 'bg-cyan-500/10 text-cyan-400' };
-    if (quarters >= 1) return { text: `${quarters.toFixed(1)}Q`, color: 'bg-yellow-500/10 text-yellow-400' };
-    return { text: `${quarters.toFixed(1)}Q`, color: 'bg-rose-500/10 text-rose-500' };
+    if (quarters === null) return { text: '—', color: 'text-slate-500' };
+    if (quarters >= 99) return { text: '∞', color: 'text-emerald-400' };
+    if (quarters >= 6) return { text: `${quarters.toFixed(0)}Q`, color: 'text-emerald-400' };
+    if (quarters >= 3) return { text: `${quarters.toFixed(0)}Q`, color: 'text-cyan-400' };
+    if (quarters >= 1) return { text: `${quarters.toFixed(1)}Q`, color: 'text-yellow-400' };
+    return { text: `${quarters.toFixed(1)}Q`, color: 'text-rose-500' };
 }
 
 export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBetaTableProps) {
     if (isLoading) {
         return (
-            <div className="space-y-3 animate-pulse">
-                <div className="h-12 bg-slate-700/30 rounded-xl" />
-                {Array.from({ length: 15 }).map((_, i) => (
+            <div className="space-y-2 animate-pulse">
+                {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="h-16 bg-slate-800/30 rounded-xl" />
                 ))}
             </div>
@@ -42,102 +41,120 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
 
     if (data.length === 0) {
         return (
-            <div className="text-center py-32 rounded-3xl bg-slate-900/40 border border-dashed border-slate-700">
-                <p className="text-xl font-medium text-slate-400">턴어라운드 후보가 존재하지 않습니다</p>
-                <p className="text-slate-500 mt-2">필터 기준: NASDAQ + 매출성장률 12.5%+ + Gross Margin 30%+</p>
+            <div className="text-center py-16 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-700">
+                <p className="text-lg font-medium text-slate-400">턴어라운드 후보 없음</p>
+                <p className="text-slate-500 text-sm mt-1">필터: Rev Growth 12.5%+, GM 30%+</p>
             </div>
         );
     }
 
+    // Mobile Card Layout
     return (
-        <div className="relative group/table overflow-hidden rounded-2xl border border-amber-500/20 bg-slate-900/60 backdrop-blur-xl shadow-2xl">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-amber-950/20 border-b border-amber-500/20">
-                            <th className="px-4 py-4 text-xs font-bold text-slate-600 w-12 text-center">#</th>
-                            <th className="px-4 py-4 text-xs font-bold text-slate-300 min-w-[120px]">TICKER</th>
-                            <th className="px-4 py-4 text-xs font-bold text-amber-500 text-center">T-GRIP</th>
-                            <th className="px-4 py-4 text-xs font-bold text-cyan-500 text-center hidden md:table-cell">RUNWAY</th>
-                            <th className="px-4 py-4 text-xs font-bold text-emerald-500 text-right hidden lg:table-cell">GROWTH</th>
-                            <th className="px-4 py-4 text-xs font-bold text-purple-500 text-right hidden lg:table-cell">GM</th>
-                            <th className="px-4 py-4 text-xs font-bold text-rose-500 text-right">TTM EPS</th>
-                            <th className="px-4 py-4 text-xs font-bold text-emerald-500 text-right">NTM EPS</th>
-                            <th className="px-4 py-4 text-xs font-bold text-slate-300 text-right">PRICE</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/40">
-                        {data.map((stock, index) => {
-                            const cashBadge = getCashRunwayBadge(stock.cashRunwayQuarters ?? null);
-                            const tGrip = stock.tGripScore ?? stock.turnaroundScore;
+        <div className="space-y-2">
+            {/* Mobile Card List */}
+            <div className="md:hidden space-y-2">
+                {data.map((stock, index) => {
+                    const tGrip = stock.tGripScore ?? stock.turnaroundScore;
+                    const cashBadge = getCashRunwayBadge(stock.cashRunwayQuarters ?? null);
 
-                            return (
-                                <tr
-                                    key={stock.ticker}
-                                    onClick={() => onSelectStock?.(stock)}
-                                    className="group hover:bg-amber-500/[0.03] transition-all cursor-pointer"
-                                >
-                                    <td className="px-4 py-5 text-center font-mono text-slate-600 text-xs">{index + 1}</td>
-                                    <td className="px-4 py-5">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">
-                                                    {stock.ticker}
-                                                </span>
-                                                {stock.cashRunwayQuarters !== null && stock.cashRunwayQuarters < 3 && (
-                                                    <span className="text-rose-500 text-[10px] animate-pulse">⚠</span>
-                                                )}
-                                            </div>
-                                            <span className="text-[10px] text-slate-500 truncate max-w-[120px] font-medium uppercase tracking-tight">
-                                                {stock.name}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-5 text-center font-mono">
-                                        <span className={`inline-block px-2 py-1 rounded-lg border text-sm font-black min-w-[44px] ${getTGripScoreColor(tGrip)}`}>
-                                            {tGrip ? tGrip.toFixed(1) : '—'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-center hidden md:table-cell">
-                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cashBadge.color}`}>
-                                            {cashBadge.text}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-right font-mono text-xs hidden lg:table-cell">
-                                        <span className={stock.revenueGrowthYoY && stock.revenueGrowthYoY > 0 ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-                                            {stock.revenueGrowthYoY !== undefined && stock.revenueGrowthYoY !== null
-                                                ? formatPercent(stock.revenueGrowthYoY, 1)
-                                                : '—'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-right font-mono text-xs hidden lg:table-cell">
-                                        <span className="text-slate-400 font-bold">
-                                            {stock.grossMargin ? formatPercent(stock.grossMargin, 0) : '—'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-right font-mono text-xs">
-                                        <span className="text-rose-500/80 font-bold">
-                                            ${stock.ttmEps?.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-right font-mono text-xs">
-                                        <span className="text-emerald-400 font-black">
-                                            ${stock.ntmEps?.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-right font-mono text-xs font-bold text-white">
-                                        ${formatNumber(stock.price)}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                    return (
+                        <div
+                            key={stock.ticker}
+                            onClick={() => onSelectStock?.(stock)}
+                            className="bg-slate-900/60 border border-amber-500/10 rounded-xl p-4 active:bg-slate-800/50 transition-all"
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-slate-600 font-mono">#{index + 1}</span>
+                                        <span className="text-base font-black text-white">{stock.ticker}</span>
+                                        {stock.cashRunwayQuarters !== null && stock.cashRunwayQuarters < 3 && (
+                                            <span className="text-rose-500 text-xs animate-pulse">⚠</span>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">{stock.name}</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className={`px-2 py-1 rounded-lg border text-sm font-black ${getTGripScoreColor(tGrip)}`}>
+                                        {tGrip ? tGrip.toFixed(1) : '—'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500">T-GRIP</span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800/50">
+                                <div>
+                                    <p className="text-[9px] text-slate-600 uppercase">TTM EPS</p>
+                                    <p className="text-xs font-bold text-rose-400">${stock.ttmEps?.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-slate-600 uppercase">NTM EPS</p>
+                                    <p className="text-xs font-bold text-emerald-400">${stock.ntmEps?.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-slate-600 uppercase">Runway</p>
+                                    <p className={`text-xs font-bold ${cashBadge.color}`}>{cashBadge.text}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-slate-600 uppercase">Price</p>
+                                    <p className="text-xs font-bold text-white">${formatNumber(stock.price)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
-            {/* UI Decorative elements */}
-            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-orange-500/20 to-transparent pointer-events-none" />
+            {/* Desktop Table */}
+            <div className="hidden md:block relative overflow-hidden rounded-2xl border border-amber-500/20 bg-slate-900/60 backdrop-blur-xl shadow-2xl">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-amber-950/20 border-b border-amber-500/20">
+                                <th className="px-3 py-3 text-[10px] font-bold text-slate-600 w-10 text-center">#</th>
+                                <th className="px-3 py-3 text-[10px] font-bold text-slate-300">TICKER</th>
+                                <th className="px-3 py-3 text-[10px] font-bold text-amber-500 text-center">T-GRIP</th>
+                                <th className="px-3 py-3 text-[10px] font-bold text-cyan-500 text-center hidden lg:table-cell">RUNWAY</th>
+                                <th className="px-3 py-3 text-[10px] font-bold text-rose-500 text-right">TTM EPS</th>
+                                <th className="px-3 py-3 text-[10px] font-bold text-emerald-500 text-right">NTM EPS</th>
+                                <th className="px-3 py-3 text-[10px] font-bold text-slate-300 text-right">PRICE</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/40">
+                            {data.map((stock, index) => {
+                                const tGrip = stock.tGripScore ?? stock.turnaroundScore;
+                                const cashBadge = getCashRunwayBadge(stock.cashRunwayQuarters ?? null);
+
+                                return (
+                                    <tr
+                                        key={stock.ticker}
+                                        onClick={() => onSelectStock?.(stock)}
+                                        className="group hover:bg-amber-500/[0.03] transition-all cursor-pointer"
+                                    >
+                                        <td className="px-3 py-3 text-center font-mono text-slate-600 text-[10px]">{index + 1}</td>
+                                        <td className="px-3 py-3">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">{stock.ticker}</span>
+                                                <span className="text-[9px] text-slate-500 truncate max-w-[100px]">{stock.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-3 text-center">
+                                            <span className={`inline-block px-2 py-1 rounded-lg border text-xs font-black ${getTGripScoreColor(tGrip)}`}>
+                                                {tGrip ? tGrip.toFixed(1) : '—'}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-3 text-center hidden lg:table-cell">
+                                            <span className={`text-xs font-bold ${cashBadge.color}`}>{cashBadge.text}</span>
+                                        </td>
+                                        <td className="px-3 py-3 text-right text-xs font-bold text-rose-400">${stock.ttmEps?.toFixed(2)}</td>
+                                        <td className="px-3 py-3 text-right text-xs font-bold text-emerald-400">${stock.ntmEps?.toFixed(2)}</td>
+                                        <td className="px-3 py-3 text-right text-xs font-bold text-white">${formatNumber(stock.price)}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 }
