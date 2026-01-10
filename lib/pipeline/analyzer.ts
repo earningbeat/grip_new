@@ -164,17 +164,29 @@ export async function analyzeStock(
         const gripScore = Math.round((pegScore + gapScore) * 10) / 10;
         const tGripScore = calculateTGripScore(ttmEps, ntmEps, runway, revGrowth);
 
-        // --- Data Integrity Check (Sanity Check) ---
+        // --- Data Integrity Check (Sanity Check) & Ghost Ticker Prevention ---
         const mktCap = quote.marketCap || profile?.mktCap || 0;
 
-        // 1. Critical Error: EPS > Price (Data corruption or unit error in API)
+        // 1. Missing Basic Market Data (Ghost Ticker Check)
+        if (price <= 0 || mktCap <= 0 || ttmRev <= 0) {
+            console.warn(`[SANITY CHECK] Skipping ${symbol}: Missing critical data (Price: ${price}, MC: ${mktCap}, Rev: ${ttmRev})`);
+            return null;
+        }
+
+        // 2. Critical Error: EPS > Price (Data corruption or unit error in API)
         if (ttmEps > price && price > 0) {
             console.warn(`[SANITY CHECK] Skipping ${symbol}: TTM EPS ($${ttmEps.toFixed(2)}) is higher than Price ($${price.toFixed(2)})`);
             return null;
         }
 
-        // 2. Impossible P/E Ratio (< 0.5x)
-        // Unless it's a very specific case, P/E < 0.5 is almost always a data parsing error
+        // 3. Extreme Growth Outlier (Stale/Split Adjusted data mismatch)
+        // If NTM EPS is > 5x TTM EPS for a profitable company, it's often a sign of stale estimates after a corporate action
+        if (ttmEps > 0.5 && ntmEps > ttmEps * 5) {
+            console.warn(`[SANITY CHECK] Skipping ${symbol}: Suspicious growth ($${ntmEps.toFixed(2)} vs $${ttmEps.toFixed(2)}) - Possible stale data`);
+            return null;
+        }
+
+        // 4. Impossible P/E Ratio (< 0.5x)
         if (ttmEps > 0 && price > 0) {
             const pe = price / ttmEps;
             if (pe < 0.5) {

@@ -4,7 +4,7 @@ import path from 'path';
 const CACHE_PATH = path.join(process.cwd(), 'data', 'grip-cache.json');
 
 function cleanCache() {
-    console.log('=== Cleaning Cache (Data Integrity Check) ===');
+    console.log('=== Cleaning Cache (Advanced Heuristics) ===');
 
     if (!fs.existsSync(CACHE_PATH)) {
         console.error('Cache file not found!');
@@ -14,7 +14,7 @@ function cleanCache() {
     const data = JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8'));
     const initialCount = data.stocks.length;
 
-    const KNOWN_DELISTED = ['ANAT', 'TGP', 'TREC', 'ATAX', 'DFFN', 'CPAAW', 'NOVAW', 'HHGWW', 'ALSAW', 'LBBBW'];
+    const KNOWN_DELISTED = ['ORAN', 'ANAT', 'TGP', 'TREC', 'ATAX', 'DFFN', 'CPAAW', 'NOVAW', 'HHGWW', 'ALSAW', 'LBBBW'];
 
     // Apply strict filters
     const filteredStocks = data.stocks.filter((s: any) => {
@@ -33,13 +33,32 @@ function cleanCache() {
             return false;
         }
 
-        // 1. Critical: EPS > Price
+        // 1. Missing Basic Market Data
+        if (price <= 0 || mktCap <= 0) {
+            console.log(`- Removing ${symbol}: Missing price ($${price}) or market cap ($${mktCap})`);
+            return false;
+        }
+
+        // 2. Missing Revenue
+        if (rev <= 0) {
+            console.log(`- Removing ${symbol}: Zero or missing revenue`);
+            return false;
+        }
+
+        // 3. Extreme Growth Outlier (Ghost Tickers / Stale Estimates)
+        // If NTM EPS is > 5x TTM EPS for a profitable company, it's likely a data error
+        if (eps > 0.5 && ntmEps > eps * 5) {
+            console.log(`- Removing ${symbol}: Suspiciously high NTM EPS ($${ntmEps.toFixed(2)}) vs TTM ($${eps.toFixed(2)}) - Possible stale data`);
+            return false;
+        }
+
+        // 4. Critical: EPS > Price
         if (eps > price && price > 0) {
             console.log(`- Removing ${symbol}: EPS ($${eps}) > Price ($${price})`);
             return false;
         }
 
-        // 2. Impossible P/E Ratio (< 0.5x)
+        // 5. Impossible P/E Ratio (< 0.5x)
         if (eps > 0 && price > 0) {
             const pe = price / eps;
             if (pe < 0.5) {
@@ -48,23 +67,22 @@ function cleanCache() {
             }
         }
 
-        // 3. Suspiciously low PE for high growth (Market usually doesn't miss this)
-        // If PE < 2 and Growth > 50%, it's almost always a data sync issue
+        // 6. Suspiciously low PE for high growth
         if (eps > 0 && price > 0 && growth > 50) {
             const pe = price / eps;
-            if (pe < 2) {
+            if (pe < 1.0) {
                 console.log(`- Removing ${symbol}: Suspicious PE (${pe.toFixed(2)}x) for high growth (${growth.toFixed(1)}%)`);
                 return false;
             }
         }
 
-        // 4. Net Income > Revenue * 1.5 (Strict)
+        // 7. Net Income > Revenue * 1.5
         if (rev > 0 && Math.abs(netInc) > rev * 1.5) {
             console.log(`- Removing ${symbol}: Net Income ($${netInc}) > 1.5x Revenue ($${rev})`);
             return false;
         }
 
-        // 5. Market Cap < 1M (Most quality/turnaround trackers skip penny stocks this small due to data unreliability)
+        // 8. Market Cap < 1M
         if (mktCap > 0 && mktCap < 1000000) {
             console.log(`- Removing ${symbol}: Market cap ($${mktCap}) too small`);
             return false;
@@ -82,7 +100,7 @@ function cleanCache() {
 
     console.log(`\nSuccessfully cleaned cache.`);
     console.log(`- Initial stocks: ${initialCount}`);
-    console.log(`- Removed (Corrupted): ${removedCount}`);
+    console.log(`- Removed (Corrupted/Stale): ${removedCount}`);
     console.log(`- Final stocks: ${filteredStocks.length}`);
 }
 
