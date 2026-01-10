@@ -101,9 +101,26 @@ function transformToStockData(raw: RawStockData): StockData | null {
     if (ttmEps === null) return null;
 
     const currentYear = new Date().getFullYear();
-    const { fy1Eps, fy2Eps } = extractFyEstimates(estimates, currentYear);
+    let { fy1Eps, fy2Eps } = extractFyEstimates(estimates, currentYear);
 
-    if (fy1Eps === null || fy2Eps === null) return null;
+    // [Growth Plan Fallback] Estimate가 없거나 비어있는 경우 CAGR 기반으로 NTM EPS 계산
+    let epsGrowthRate = 0;
+    if (fy1Eps === null || fy2Eps === null) {
+        // 최근 4개 연도 연간 데이터 기준 CAGR 계산 시도
+        const annuals = incomeStatements.filter(s => s.period === 'FY');
+        if (annuals.length >= 4) {
+            const cur = annuals[0].epsdiluted || annuals[0].eps;
+            const old = annuals[3].epsdiluted || annuals[3].eps;
+            if (cur > 0 && old > 0) {
+                const cagr = Math.pow(cur / old, 1 / 3) - 1;
+                epsGrowthRate = Math.max(0, cagr * 100);
+            }
+        }
+
+        // Fallback 추정치 (FY1 = TTM * (1+g), FY2 = FY1 * (1+g))
+        fy1Eps = ttmEps * (1 + epsGrowthRate / 100);
+        fy2Eps = fy1Eps * (1 + epsGrowthRate / 100);
+    }
 
     // 회계연도 종료월 추정 (기본 12월)
     const fiscalYearEndMonth = 12;
@@ -213,8 +230,8 @@ export async function runPipeline(): Promise<ProcessingResult> {
         }
     });
 
-    // Batch parallel execution (5 at a time for rate limiting)
-    const concurrencyLimit = 5;
+    // Batch parallel execution (Strict Rate Limiting for Growth Plan: 1 RPS)
+    const concurrencyLimit = 1;
     const rawDataResults: RawStockData[] = [];
 
     for (let i = 0; i < rawDataPromises.length; i += concurrencyLimit) {
@@ -222,9 +239,9 @@ export async function runPipeline(): Promise<ProcessingResult> {
         const results = await Promise.all(batch);
         rawDataResults.push(...results);
 
-        // Rate limiting between batches
-        if (i + concurrencyLimit < rawDataPromises.length) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+        // Progress log every 10 stocks
+        if (i % 10 === 0) {
+            console.log(`[Pipeline] Processed ${i}/${symbols.length} tickers...`);
         }
     }
 

@@ -55,8 +55,10 @@ interface SP500Constituent {
     founded: string;
 }
 
+import { fmpRateLimiter } from './rate-limiter';
+
 /**
- * API 호출 기본 함수
+ * API 호출 기본 함수 (Rate Limiter 적용)
  */
 async function fetchFromFMP<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
     const apiKey = process.env.FMP_API_KEY;
@@ -68,15 +70,26 @@ async function fetchFromFMP<T>(endpoint: string, params: Record<string, string> 
     const searchParams = new URLSearchParams({ ...params, apikey: apiKey });
     const url = `${BASE_URL}${endpoint}?${searchParams.toString()}`;
 
-    const response = await fetch(url, {
-        next: { revalidate: config.refresh.cache_ttl_hours * 3600 }
+    // Rate Limiter 적용
+    return fmpRateLimiter.execute(async () => {
+        const response = await fetch(url, {
+            next: { revalidate: config.refresh.cache_ttl_hours * 3600 }
+        });
+
+        if (!response.ok) {
+            if (response.status === 403) {
+                console.warn(`[FMP API] 403 Forbidden at ${endpoint}. Likely Plan constraints (Growth Plan).`);
+                // 빈 결과나 에러 객체를 반환하여 상위 로직에서 fallback 하도록 함
+                return [] as any as T;
+            }
+            if (response.status === 429) {
+                console.error(`[FMP API] 429 Too Many Requests. Rate limiter may need adjustment.`);
+            }
+            throw new Error(`FMP API Error: ${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
     });
-
-    if (!response.ok) {
-        throw new Error(`FMP API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
 }
 
 /**

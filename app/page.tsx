@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import RankingTable from '@/components/RankingTable';
 import HighBetaTable from '@/components/HighBetaTable';
 import MetadataCard from '@/components/MetadataCard';
+import StockOverviewModal from '@/components/StockOverviewModal';
 import type { StockData, RankingMetadata, RankingResponse } from '@/types';
 
 type TabType = 'quality' | 'high-beta';
@@ -16,6 +17,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 모달 제어
+  const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
 
   // 티커 검색
   const [searchTicker, setSearchTicker] = useState('');
@@ -542,19 +546,30 @@ export default function Home() {
           </div>
 
           {activeTab === 'quality' ? (
-            <RankingTable data={qualityData} isLoading={isLoading} />
+            <RankingTable data={qualityData} isLoading={isLoading} onSelectStock={setSelectedStock} />
           ) : (
-            <HighBetaTable data={highBetaData} isLoading={isLoading} />
+            <HighBetaTable data={highBetaData} isLoading={isLoading} onSelectStock={setSelectedStock} />
           )}
         </section>
+
+        {/* Stock Overview Modal */}
+        {selectedStock && (
+          <StockOverviewModal
+            stock={selectedStock}
+            onClose={() => setSelectedStock(null)}
+          />
+        )}
 
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-slate-800/50 text-center text-slate-500 text-sm">
           <p>
-            데이터: <a href="https://www.alphavantage.co" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Alpha Vantage</a>
+            데이터: <a href="https://financialmodelingprep.com/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Financial Modeling Prep (FMP)</a>
           </p>
-          <p className="mt-2 text-xs text-slate-600">
-            ⚠️ 본 도구는 리서치 참고용이며, 투자 결정은 본인 책임입니다.
+          <p className="mt-1 text-[10px] text-slate-600 uppercase tracking-widest">
+            Growth Plan Optimized Pipeline v2.0
+          </p>
+          <p className="mt-4 text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+            ⚠️ 투자 결정에 대한 최종 책임은 사용자에게 있으며, 본 서비스는 상장사 공시 데이터와 CAGR 추정치 기반의 리서치 결과물입니다.
           </p>
         </footer>
       </div>

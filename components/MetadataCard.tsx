@@ -10,16 +10,26 @@ interface MetadataCardProps {
     isRefreshing?: boolean;
 }
 
+function StatItem({ label, value, subValue, color = 'text-white' }: { label: string; value: string; subValue?: string; color?: string }) {
+    return (
+        <div className="flex flex-col">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
+            <p className={`text-xl font-black ${color}`}>{value}</p>
+            {subValue && <p className="text-[10px] text-slate-600 font-medium mt-0.5 uppercase">{subValue}</p>}
+        </div>
+    );
+}
+
 export default function MetadataCard({ metadata, isLoading, onRefresh, isRefreshing }: MetadataCardProps) {
     if (isLoading) {
         return (
-            <div className="animate-pulse rounded-xl border border-slate-700/50 bg-slate-900/50 p-6">
-                <div className="h-6 w-48 bg-slate-700 rounded mb-4" />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="animate-pulse rounded-3xl border border-slate-700/30 bg-slate-900/40 p-8">
+                <div className="h-4 w-32 bg-slate-700/50 rounded mb-8" />
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i}>
-                            <div className="h-4 w-20 bg-slate-700/50 rounded mb-2" />
-                            <div className="h-8 w-16 bg-slate-700 rounded" />
+                        <div key={i} className="space-y-3">
+                            <div className="h-3 w-16 bg-slate-800 rounded" />
+                            <div className="h-8 w-24 bg-slate-800 rounded" />
                         </div>
                     ))}
                 </div>
@@ -29,78 +39,85 @@ export default function MetadataCard({ metadata, isLoading, onRefresh, isRefresh
 
     if (!metadata) {
         return (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
-                <div className="flex items-center gap-3 text-amber-400">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span className="font-medium">아직 데이터가 없습니다. API 키를 설정하고 새로고침 해주세요.</span>
+            <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-md p-6">
+                <div className="flex items-center gap-4 text-amber-500">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center animate-pulse">
+                        <span className="text-xl">!</span>
+                    </div>
+                    <div>
+                        <p className="font-black text-sm uppercase tracking-wider">Empty Dataset</p>
+                        <p className="text-xs text-amber-500/70 mt-0.5">Please refresh data to populate the cache.</p>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 backdrop-blur-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <h3 className="font-semibold text-white">Data Status</h3>
+        <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/40 backdrop-blur-xl p-8 shadow-2xl">
+            {/* Background Glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/5 blur-[80px] rounded-full pointer-events-none" />
+
+            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8">
+
+                <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-8">
+                    <StatItem
+                        label="Last Updated"
+                        value={formatRelativeTime(metadata.timestamp)}
+                        subValue={formatDate(metadata.timestamp).split(',')[0]}
+                        color="text-emerald-400"
+                    />
+                    <StatItem
+                        label="NASDAQ Universe"
+                        value={(metadata.totalProcessed || 0).toLocaleString()}
+                        subValue="Checked Tickers"
+                    />
+                    <StatItem
+                        label="Target Pool"
+                        value={((metadata.totalProcessed || 0) - (metadata.totalExcluded || 0)).toLocaleString()}
+                        subValue=">$100M Market Cap"
+                        color="text-cyan-400"
+                    />
+                    <StatItem
+                        label="Pipeline Version"
+                        value="2.0-STABLE"
+                        subValue="FMP Growth Plan"
+                        color="text-slate-500"
+                    />
                 </div>
-                {onRefresh && (
-                    <button
-                        onClick={onRefresh}
-                        disabled={isRefreshing}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <svg
-                            className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+
+                <div className="flex-shrink-0 flex items-center gap-4">
+                    {onRefresh && (
+                        <button
+                            onClick={onRefresh}
+                            disabled={isRefreshing}
+                            className={`
+                                relative group px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all
+                                ${isRefreshing
+                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                    : 'bg-white text-slate-950 hover:bg-emerald-400 hover:scale-105 active:scale-95 shadow-lg shadow-white/5'}
+                            `}
                         >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        {isRefreshing ? 'Updating...' : 'Refresh Data'}
-                    </button>
-                )}
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Last Updated</p>
-                    <p className="text-lg font-semibold text-white">{formatRelativeTime(metadata.timestamp)}</p>
-                    <p className="text-xs text-slate-500">{formatDate(metadata.timestamp)}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Processed</p>
-                    <p className="text-lg font-semibold text-white">{(metadata.totalProcessed || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Excluded</p>
-                    <p className="text-lg font-semibold text-amber-400">{(metadata.totalExcluded || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Processing Time</p>
-                    <p className="text-lg font-semibold text-white">{((metadata.processingTimeMs || 0) / 1000).toFixed(1)}s</p>
-                </div>
-            </div>
-
-            {metadata.excludedReasons && Object.keys(metadata.excludedReasons).length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-700/50">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Exclusion Reasons</p>
-                    <div className="flex flex-wrap gap-2">
-                        {Object.entries(metadata.excludedReasons).map(([reason, count]) => (
-                            <span
-                                key={reason}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-800 text-slate-400"
-                            >
-                                {reason}: <span className="font-semibold">{count}</span>
+                            <span className="flex items-center gap-2">
+                                <svg
+                                    className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                {isRefreshing ? 'Syncing...' : 'Refresh'}
                             </span>
-                        ))}
-                    </div>
+                        </button>
+                    )}
                 </div>
-            )}
+            </div>
+
+            {/* Decorative bar */}
+            <div className="mt-8 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-indigo-500 opacity-30" />
+            </div>
         </div>
     );
 }

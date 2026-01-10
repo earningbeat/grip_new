@@ -14,8 +14,22 @@ export async function analyzeStock(
     baseUrl: string
 ): Promise<EnrichedStockData | null> {
     try {
-        const [quoteRes, profileRes, incomeQRes, incomeARes, balanceRes, gradesRes] = await Promise.all([
-            fetch(`${baseUrl}/quote?symbol=${symbol}&apikey=${apiKey}`),
+        // 1. Fetch Quote first to check eligibility (saves 5 calls for ~50% of stocks)
+        const quoteRes = await fetch(`${baseUrl}/quote?symbol=${symbol}&apikey=${apiKey}`);
+        const quoteData = await quoteRes.json().catch(() => null);
+        const quote = quoteData?.[0];
+
+        if (!quote) return null;
+
+        // Check basic eligibility before heavy lifting (NASDAQ + 시총 100M)
+        const isNasdaq = quote.exchange?.toUpperCase().includes('NASDAQ');
+        const isMinCap = quote.marketCap >= 100000000;
+
+        // If not eligible, return null immediately (saving 5 tokens/seconds)
+        if (!isNasdaq || !isMinCap) return null;
+
+        // 2. Fetch the rest only for eligible stocks
+        const [profileRes, incomeQRes, incomeARes, balanceRes, gradesRes] = await Promise.all([
             fetch(`${baseUrl}/profile?symbol=${symbol}&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=annual&limit=4&apikey=${apiKey}`),
@@ -23,8 +37,7 @@ export async function analyzeStock(
             fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`)
         ]);
 
-        const [quoteData, profileData, incomeQ, incomeA, balanceData, grades] = await Promise.all([
-            quoteRes.json().catch(() => null),
+        const [profileData, incomeQ, incomeA, balanceData, grades] = await Promise.all([
             profileRes.json().catch(() => null),
             incomeQRes.json().catch(() => null),
             incomeARes.json().catch(() => null),
@@ -32,9 +45,7 @@ export async function analyzeStock(
             gradesRes.json().catch(() => null)
         ]);
 
-        const quote = quoteData?.[0];
         const profile = profileData?.[0];
-        if (!quote) return null;
 
         // 1. 재무 총합 (TTM)
         let ttmRev = 0, ttmOpInc = 0, ttmNetInc = 0, ttmGrossProf = 0;
@@ -88,8 +99,32 @@ export async function analyzeStock(
             }
         }
 
-        // 7. Estimations
-        const growthEst = cagr3Y !== null ? Math.max(0, cagr3Y) : 0;
+        // 7. Estimations (Growth Plan Fallback)
+        let fy1Eps = grades?.[0]?.estimatedEpsAvg ?? null;
+        let fy2Eps = grades?.[1]?.estimatedEpsAvg ?? null;
+        let growthEst = 0;
+
+        if (fy1Eps === null || fy2Eps === null) {
+            // Analyst Estimates가 없는 경우 (Growth Plan), 과거 4년 데이터 기반 CAGR 계산
+            if (Array.isArray(incomeA) && incomeA.length >= 4) {
+                const cur = Number(getEps(incomeA[0])) || 0;
+                const old = Number(getEps(incomeA[3])) || 0;
+                if (cur > 0 && old > 0) {
+                    const cagr = Math.pow(cur / old, 1 / 3) - 1;
+                    growthEst = Math.max(0, cagr * 100);
+                }
+            } else if (cagr3Y !== null) {
+                growthEst = Math.max(0, cagr3Y);
+            }
+
+            // Fallback 추정치
+            fy1Eps = ttmEps * (1 + growthEst / 100);
+            fy2Eps = fy1Eps * (1 + growthEst / 100);
+        } else {
+            // Estimates 데이터가 있는 경우 성장률 역산
+            if (ttmEps > 0) growthEst = (fy1Eps / ttmEps - 1) * 100;
+        }
+
         const ntmEps = ttmEps * (1 + growthEst / 100);
         const price = quote.price || 0;
         const ttmPe = ttmEps > 0 ? price / ttmEps : null;
@@ -97,7 +132,7 @@ export async function analyzeStock(
         const gapRatio = ttmEps > 0 ? ntmEps / ttmEps : null;
         const peg = (ttmPe && growthEst > 0) ? ttmPe / growthEst : null;
 
-        // 8. Scoring (단순화: PEG + GAP만)
+        // 8. Scoring
         const gripScore = calculateGripScore({ peg, gapRatio });
         const tGripScore = calculateTGripScore(ttmEps, ntmEps, runway, revGrowth);
 
