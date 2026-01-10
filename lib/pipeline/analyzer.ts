@@ -136,8 +136,25 @@ export async function analyzeStock(
         const gapRatio = ttmEps > 0 ? ntmEps / ttmEps : null;
         const peg = (ttmPe && growthEst > 0) ? ttmPe / growthEst : null;
 
-        // 8. Scoring
-        const gripScore = calculateGripScore({ peg, gapRatio });
+        // 8. Scoring (calculate individual scores for UI display)
+        // PEG Score (0-5점): PEG 0.5 이하 = 5점, PEG 2.5 이상 = 0점
+        let pegScore = 0;
+        if (peg !== null && peg > 0) {
+            pegScore = Math.max(0, Math.min(5, (2.5 - peg) * 2.5));
+            pegScore = Math.round(pegScore * 10) / 10;
+        }
+
+        // GAP Score (0-5점): Gap Ratio 1.5 이상 = 5점, 1.0 이하 = 0점
+        let gapScore = 0;
+        if (gapRatio !== null && gapRatio > 0) {
+            gapScore = Math.max(0, Math.min(5, (gapRatio - 1) * 10));
+            gapScore = Math.round(gapScore * 10) / 10;
+        }
+
+        // GRIP Score = PEG Score + GAP Score (0-10)
+        const gripScore = Math.round((pegScore + gapScore) * 10) / 10;
+
+        // T-GRIP Score for turnaround candidates
         const tGripScore = calculateTGripScore(ttmEps, ntmEps, runway, revGrowth);
 
         return {
@@ -170,8 +187,8 @@ export async function analyzeStock(
             forwardEpsGrowth: null,
             peg,
             forwardPeg: null,
-            pegScore: null, // scoring.ts에서 점수화 필요 시 확장
-            gapScore: null,
+            pegScore,
+            gapScore,
             gripScore,
             gripStatus: (ttmEps > 0 && ntmEps > 0) ? 'high' : 'watch' as GripStatus,
             isQualityGrowth: upgrades > 0,
