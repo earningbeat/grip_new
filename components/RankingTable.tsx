@@ -10,16 +10,35 @@ interface RankingTableProps {
     onSelectStock?: (stock: StockData) => void;
 }
 
-type SortKey = 'gripScore' | 'price' | 'marketCap' | 'revenue' | 'netMargin' | 'peg' | 'ttmPe' | 'forwardPe' | 'gapRatio';
+type SortKey = 'gripScore' | 'price' | 'marketCap' | 'revenue' | 'cagr3Y' | 'peg' | 'ttmPe' | 'forwardPe' | 'gapRatio';
 type SortOrder = 'asc' | 'desc';
+
+// Exchange Badge
+function ExchangeBadge({ exchange }: { exchange?: string }) {
+    if (!exchange) return null;
+    const ex = exchange.toUpperCase();
+    const isNasdaq = ex.includes('NASDAQ') || ex === 'NGS' || ex === 'NGM' || ex === 'NCM';
+    const isNyse = ex.includes('NYSE') || ex === 'NYQ' || ex === 'NYS';
+
+    if (!isNasdaq && !isNyse) return null;
+
+    return (
+        <span className={`px-1 py-0.5 rounded-[2px] text-[7px] font-black tracking-tighter border ${isNasdaq
+            ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+            : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+            }`}>
+            {isNasdaq ? 'NASDAQ' : 'NYSE'}
+        </span>
+    );
+}
 
 // GRIP Score 색상 (0-10점)
 function getGripScoreColor(score: number | null): string {
     if (score === null) return 'text-slate-500';
-    if (score >= 8) return 'text-emerald-400 bg-emerald-500/20';
-    if (score >= 6) return 'text-cyan-400 bg-cyan-500/20';
-    if (score >= 4) return 'text-yellow-400 bg-yellow-500/20';
-    return 'text-slate-400 bg-slate-700/50';
+    if (score >= 8) return 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20';
+    if (score >= 6) return 'text-cyan-400 bg-cyan-500/10 border border-cyan-500/20';
+    if (score >= 4) return 'text-yellow-400 bg-yellow-500/10 border border-yellow-500/20';
+    return 'text-slate-400 bg-slate-800/50 border border-slate-700/50';
 }
 
 // 정렬 화살표
@@ -36,9 +55,9 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
     const sortedData = useMemo(() => {
-        return [...data].sort((a: any, b: any) => {
-            const aVal = a[sortKey] ?? -Infinity;
-            const bVal = b[sortKey] ?? -Infinity;
+        return [...data].sort((a, b) => {
+            const aVal = (a as any)[sortKey] ?? -Infinity;
+            const bVal = (b as any)[sortKey] ?? -Infinity;
             return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
         });
     }, [data, sortKey, sortOrder]);
@@ -72,8 +91,8 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
     if (data.length === 0) {
         return (
             <div className="text-center py-20 text-slate-400">
-                <p className="text-lg font-medium">데이터가 없습니다</p>
-                <p className="text-sm mt-1">필터링 조건을 만족하는 종목이 없습니다</p>
+                <p className="text-lg font-medium tracking-tight">데이터가 없습니다</p>
+                <p className="text-xs mt-1 font-bold uppercase tracking-widest opacity-30">No matching stocks found</p>
             </div>
         );
     }
@@ -82,7 +101,7 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
         <>
             {/* Mobile Card Layout */}
             <div className="md:hidden space-y-2">
-                {sortedData.map((stock: any, index) => (
+                {sortedData.map((stock, index) => (
                     <div
                         key={stock.ticker}
                         onClick={() => onSelectStock?.(stock)}
@@ -90,31 +109,31 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                     >
                         <div className="flex justify-between items-start mb-3">
                             <div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-600">#{index + 1}</span>
-                                    <span className="font-bold text-white">{stock.ticker}</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-600 font-mono">#{index + 1}</span>
+                                    <span className="font-black text-white">{stock.ticker}</span>
                                 </div>
-                                <p className="text-[10px] text-slate-500 truncate max-w-[150px]">{stock.name}</p>
+                                <p className="text-[10px] text-slate-500 truncate max-w-[150px] font-medium leading-none mt-1">{stock.name}</p>
                             </div>
                             <div className="text-right">
-                                <span className={`px-2 py-1 rounded text-sm font-bold ${getGripScoreColor(stock.gripScore)}`}>
+                                <span className={`px-2 py-0.5 rounded text-[11px] font-black ${getGripScoreColor(stock.gripScore)}`}>
                                     {stock.gripScore?.toFixed(1) ?? '—'}
                                 </span>
-                                <p className="text-[10px] text-slate-500 mt-1">GRIP</p>
+                                <p className="text-[8px] text-slate-600 font-bold mt-1 uppercase tracking-tighter">GRIP CORE</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-[10px]">
                             <div>
-                                <p className="text-slate-600 uppercase">Price</p>
-                                <p className="text-white">${formatNumber(stock.price)}</p>
+                                <p className="text-slate-600 font-bold uppercase tracking-tighter">Price</p>
+                                <p className="text-white font-bold">${formatNumber(stock.price)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-600 uppercase">PEG</p>
-                                <p className="text-emerald-400">{stock.peg?.toFixed(2)}</p>
+                                <p className="text-slate-600 font-bold uppercase tracking-tighter">CAGR</p>
+                                <p className="text-rose-400 font-bold">{(stock.cagr3Y ?? 0).toFixed(1)}%</p>
                             </div>
                             <div>
-                                <p className="text-slate-600 uppercase">GAP</p>
-                                <p className="text-purple-400">{stock.gapRatio?.toFixed(2)}x</p>
+                                <p className="text-slate-600 font-bold uppercase tracking-tighter">GAP</p>
+                                <p className="text-purple-400 font-bold">{stock.gapRatio?.toFixed(2)}x</p>
                             </div>
                         </div>
                     </div>
@@ -162,10 +181,10 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                                 </span>
                             </th>
 
-                            <th className={headerClass('netMargin')} onClick={() => handleSort('netMargin')}>
-                                <span className="inline-flex items-center">
-                                    MARGIN
-                                    <SortArrow active={sortKey === 'netMargin'} order={sortOrder} />
+                            <th className={headerClass('cagr3Y')} onClick={() => handleSort('cagr3Y')}>
+                                <span className="inline-flex items-center text-rose-400">
+                                    CAGR
+                                    <SortArrow active={sortKey === 'cagr3Y'} order={sortOrder} />
                                 </span>
                             </th>
 
@@ -207,11 +226,14 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                             >
                                 <td className="px-3 py-3 text-slate-500 font-mono text-[10px]">{index + 1}</td>
                                 <td className="px-3 py-3">
-                                    <span className="font-bold text-white group-hover:text-emerald-400 transition-colors">
-                                        {stock.ticker}
-                                    </span>
+                                    <div className="flex items-center gap-1.5 min-w-[100px]">
+                                        <ExchangeBadge exchange={stock.exchange} />
+                                        <span className="font-bold text-white group-hover:text-emerald-400 transition-colors">
+                                            {stock.ticker}
+                                        </span>
+                                    </div>
                                 </td>
-                                <td className="px-3 py-3 text-slate-400 truncate max-w-[150px] text-[11px]">
+                                <td className="px-3 py-3 text-slate-400 truncate max-w-[150px] text-[11px] font-medium leading-none">
                                     {stock.name}
                                 </td>
                                 <td className="px-3 py-3 text-slate-500 text-[10px] hidden xl:table-cell truncate max-w-[100px]">
@@ -232,8 +254,8 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                                     {formatMarketCap(stock.revenue)}
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-[11px]">
-                                    <span className={stock.netMargin > 20 ? 'text-emerald-400' : 'text-slate-400'}>
-                                        {formatPercent(stock.netMargin)}
+                                    <span className={Number(stock.cagr3Y) > 20 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
+                                        {stock.cagr3Y ? formatPercent(stock.cagr3Y / 100) : '—'}
                                     </span>
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-[11px]">

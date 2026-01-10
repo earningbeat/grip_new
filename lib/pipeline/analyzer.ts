@@ -36,19 +36,21 @@ export async function analyzeStock(
         if ((!isNasdaq && !isNyse) || isOTC) return null;
 
         // 2. Fetch the rest only for eligible stocks
-        const [profileRes, incomeQRes, incomeARes, balanceRes, gradesRes] = await Promise.all([
+        const [profileRes, incomeQRes, incomeARes, balanceRes, cashflowRes, gradesRes] = await Promise.all([
             fetch(`${baseUrl}/profile?symbol=${symbol}&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=annual&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
+            fetch(`${baseUrl}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
             fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`)
         ]);
 
-        const [profileData, incomeQ, incomeA, balanceData, grades] = await Promise.all([
+        const [profileData, incomeQ, incomeA, balanceData, cashFlowQ, grades] = await Promise.all([
             profileRes.json().catch(() => null),
             incomeQRes.json().catch(() => null),
             incomeARes.json().catch(() => null),
             balanceRes.json().catch(() => null),
+            cashflowRes.json().catch(() => null),
             gradesRes.json().catch(() => null)
         ]);
 
@@ -160,13 +162,32 @@ export async function analyzeStock(
             gapScore = Math.round(gapScore * 10) / 10;
         }
 
-        // 9. GRIP & T-GRIP Scores
+        // 9. Revenue CAGR (3-5Y)
+        let revCagr3Y = null;
+        if (Array.isArray(incomeA) && incomeA.length >= 4) {
+            const curRev = Number(incomeA[0].revenue) || 0;
+            const oldRev = Number(incomeA[3].revenue) || 0;
+            if (curRev > 0 && oldRev > 0) {
+                revCagr3Y = (Math.pow(curRev / oldRev, 1 / 3) - 1) * 100;
+            }
+        }
+
+        const mktCap = quote.marketCap || profile?.mktCap || 0;
+        const totalCash = (balanceData?.[0]?.cashAndCashEquivalents || 0) + (balanceData?.[0]?.shortTermInvestments || 0);
+        const totalDebt = (balanceData?.[0]?.totalDebt || 0);
+        const ev = mktCap + totalDebt - totalCash;
+
+        const evRevenue = ttmRev > 0 ? ev / ttmRev : null;
+        const psr = ttmRev > 0 ? mktCap / ttmRev : null;
+
+        // Operating Cash Flow (from Flow statement)
+        const ttmOcf = cashFlowQ?.[0]?.operatingCashFlow || 0;
+
+        // 10. GRIP & T-GRIP Scores
         const gripScore = Math.round((pegScore + gapScore) * 10) / 10;
         const tGripScore = calculateTGripScore(ttmEps, ntmEps, runway, revGrowth);
 
         // --- Data Integrity Check (Sanity Check) & Ghost Ticker Prevention ---
-        const mktCap = quote.marketCap || profile?.mktCap || 0;
-
         // 1. Missing Basic Market Data (Ghost Ticker Check)
         if (price <= 0 || mktCap <= 0 || ttmRev <= 0) {
             console.warn(`[SANITY CHECK] Skipping ${symbol}: Missing critical data (Price: ${price}, MC: ${mktCap}, Rev: ${ttmRev})`);
@@ -180,7 +201,6 @@ export async function analyzeStock(
         }
 
         // 3. Extreme Growth Outlier (Stale/Split Adjusted data mismatch)
-        // If NTM EPS is > 5x TTM EPS for a profitable company, it's often a sign of stale estimates after a corporate action
         if (ttmEps > 0.5 && ntmEps > ttmEps * 5) {
             console.warn(`[SANITY CHECK] Skipping ${symbol}: Suspicious growth ($${ntmEps.toFixed(2)} vs $${ttmEps.toFixed(2)}) - Possible stale data`);
             return null;
@@ -195,7 +215,7 @@ export async function analyzeStock(
             }
         }
 
-        // 3. Net Income > Revenue (Mathematically impossible)
+        // 5. Net Income > Revenue (Mathematically impossible)
         if (ttmRev > 0 && Math.abs(ttmNetInc) > ttmRev * 1.5) {
             if (ttmNetInc > ttmRev * 10) {
                 console.warn(`[SANITY CHECK] Skipping ${symbol}: Net Income ($${ttmNetInc}) is 10x Revenue ($${ttmRev})`);
@@ -203,7 +223,7 @@ export async function analyzeStock(
             }
         }
 
-        // 4. Net Income > Market Cap (Extremely suspicious)
+        // 6. Net Income > Market Cap (Extremely suspicious)
         if (mktCap > 0 && ttmNetInc > mktCap * 2) {
             console.warn(`[SANITY CHECK] Skipping ${symbol}: Net Income ($${ttmNetInc}) > 2x Market Cap ($${mktCap})`);
             return null;
@@ -217,7 +237,7 @@ export async function analyzeStock(
             industry: profile?.industry || 'Unknown',
             exchange: quote.exchange || profile?.exchangeShortName || 'Unknown',
             price,
-            marketCap: quote.marketCap || profile?.mktCap || 0,
+            marketCap: mktCap,
             beta: profile?.beta || null,
             revenue: ttmRev,
             revenueGrowthYoY: revGrowth,
@@ -232,7 +252,7 @@ export async function analyzeStock(
             ntmEps,
             ttmPe,
             forwardPe,
-            fy2Pe: null, // 계산 생략
+            fy2Pe: null,
             gapRatio,
             deltaPe: null,
             epsGrowthRate: growthEst,
@@ -246,16 +266,20 @@ export async function analyzeStock(
             isQualityGrowth: upgrades > 0,
             epsWarnings: upgrades > 0 ? [`최근 6개월 Upgrade ${upgrades}회`] : [],
             turnaroundDelta: ntmEps - ttmEps,
-            turnaroundScore: null,
             tGripScore,
+            evRevenue,
+            psr,
+            ruleOf40: (revGrowth !== null && gMargin !== null) ? (revGrowth * 100 + gMargin * 100) : null,
+            freeCashFlow: ttmOcf,
+            cashAndShortTermInvestments: totalCash,
             cashRunwayQuarters: runway,
+            cagr3Y: revCagr3Y, // User asked for Revenue CAGR
             fiscalYearEndMonth: 12,
             lastUpdated: new Date().toISOString(),
             isQuality: ttmEps > 0 && ntmEps > 0,
             isTurnaround: ttmEps <= 0 && ntmEps > 0,
             isEligible: ttmEps > 0 && ntmEps > 0,
             warnings: upgrades > 0 ? [`최근 6개월 Upgrade ${upgrades}회`] : [],
-            // Latest quarter data for freshness
             latestQEps,
             latestQDate,
             latestQPeriod

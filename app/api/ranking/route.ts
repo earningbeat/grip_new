@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCachedGRIPData } from '@/lib/data/cache';
 import { calculateGripScore } from '@/lib/utils/scoring';
+import { StockData } from '@/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -14,7 +15,7 @@ function calculatePercentile(value: number, sortedArray: number[]): number {
 }
 
 // Enrich stock with all calculable metrics
-function enrichStockData(stock: any) {
+function enrichStockData(stock: StockData): StockData {
     const price = stock.price || 0;
     const ttmEps = stock.ttmEps || 0;
     const ntmEps = stock.ntmEps || 0;
@@ -27,12 +28,7 @@ function enrichStockData(stock: any) {
     const fy2Pe = (fy2Eps > 0) ? price / fy2Eps : null;
 
     // === NEW: Gap Ratio Redefined as TTM P/E / NTM P/E ===
-    const gapRatio = (ttmPe && forwardPe && forwardPe > 0) ? ttmPe / forwardPe : null;
-
-    // === NEW: Net Margin Calculation (TTM based) ===
-    const revenue = stock.revenue || 0;
-    const netIncome = stock.netIncome || 0;
-    const netMargin = (revenue > 0) ? (netIncome / revenue) * 100 : 0;
+    const gapRatio = (ttmPe && forwardPe && forwardPe > 0) ? ttmPe / forwardPe : (stock.gapRatio || null);
 
     // Delta PE (TTM PE - Forward PE)
     const deltaPe = (ttmPe && forwardPe) ? ttmPe - forwardPe : null;
@@ -56,7 +52,6 @@ function enrichStockData(stock: any) {
         forwardPe,
         fy2Pe,
         gapRatio,
-        netMargin,
         deltaPe,
         forwardEpsGrowth,
         forwardPeg,
@@ -85,26 +80,26 @@ export async function GET() {
         }
 
         // 1. Enrich ALL stocks with calculated metrics
-        const enrichedStocks = stocks.map(enrichStockData);
+        const enrichedStocks = stocks.map(enrichStockData) as (StockData & { pegPctl?: number; gapPctl?: number; growthPctl?: number; compositeRank?: number })[];
 
         // 2. Calculate NASDAQ Top 100 benchmark (by market cap)
         const top100ByMarketCap = [...enrichedStocks]
-            .filter((s: any) => s.marketCap > 0 && s.epsGrowthRate !== null && s.epsGrowthRate > 0)
-            .sort((a: any, b: any) => (b.marketCap || 0) - (a.marketCap || 0))
+            .filter((s: StockData) => s.marketCap > 0 && s.epsGrowthRate !== null && s.epsGrowthRate > 0)
+            .sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))
             .slice(0, 100);
 
         const benchmarkGrowth = top100ByMarketCap.length > 0
-            ? top100ByMarketCap.reduce((sum: number, s: any) => sum + (s.epsGrowthRate || 0), 0) / top100ByMarketCap.length
+            ? top100ByMarketCap.reduce((sum: number, s) => sum + (s.epsGrowthRate || 0), 0) / top100ByMarketCap.length
             : 15; // 기본값 15%
 
         const benchmarkPe = top100ByMarketCap.length > 0
-            ? top100ByMarketCap.reduce((sum: number, s: any) => sum + (s.ttmPe || 0), 0) / top100ByMarketCap.length
+            ? top100ByMarketCap.reduce((sum: number, s) => sum + (s.ttmPe || 0), 0) / top100ByMarketCap.length
             : 25; // 기본값 25x
 
         // 3. Quality Filter: TTM EPS > 0 AND growth rate > benchmark AND valid PEG
         // + New Premium Filter: TTM P/E > benchmark P/E (Exclude "Value Traps" or unappreciated growth)
         const qualityFiltered = enrichedStocks
-            .filter((s: any) =>
+            .filter((s) =>
                 s.ttmEps > 0 &&
                 s.epsGrowthRate !== null &&
                 s.epsGrowthRate > benchmarkGrowth &&
@@ -113,15 +108,15 @@ export async function GET() {
                 s.peg !== null &&
                 s.peg > 0 &&
                 s.peg < 10 && // PEG 10 초과는 비정상
-                s.gripScore > 0
+                (s.gripScore ?? 0) > 0
             );
 
         // 4. Calculate Percentile Rankings
-        const pegValues = qualityFiltered.map((s: any) => s.peg).filter((v: any) => v !== null && v > 0).sort((a: number, b: number) => a - b);
-        const gapValues = qualityFiltered.map((s: any) => s.gapRatio).filter((v: any) => v !== null).sort((a: number, b: number) => a - b);
-        const growthValues = qualityFiltered.map((s: any) => s.epsGrowthRate).filter((v: any) => v !== null).sort((a: number, b: number) => a - b);
+        const pegValues = qualityFiltered.map((s) => s.peg).filter((v): v is number => v !== null && v > 0).sort((a, b) => a - b);
+        const gapValues = qualityFiltered.map((s) => s.gapRatio).filter((v): v is number => v !== null).sort((a, b) => a - b);
+        const growthValues = qualityFiltered.map((s) => s.epsGrowthRate).filter((v): v is number => v !== null).sort((a, b) => a - b);
 
-        const rankedStocks = qualityFiltered.map((s: any) => {
+        const rankedStocks = qualityFiltered.map((s) => {
             // PEG Percentile (lower is better, so invert)
             const pegPctl = s.peg ? 100 - calculatePercentile(s.peg, pegValues) : 0;
             // GAP Percentile (higher is better)
@@ -142,7 +137,7 @@ export async function GET() {
         });
 
         // 5. Sort by composite rank
-        const sortedStocks = rankedStocks.sort((a: any, b: any) =>
+        const sortedStocks = rankedStocks.sort((a, b) =>
             (b.compositeRank || 0) - (a.compositeRank || 0)
         );
 

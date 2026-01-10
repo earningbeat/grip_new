@@ -57,19 +57,26 @@ export interface StockData {
     isEligible?: boolean;
     isQuality?: boolean;
     warnings?: string[];
-    exchange?: string;
+    exchange: string;
 
     // High-Beta / 턴어라운드 지표
     isTurnaround: boolean;
     turnaroundDelta: number | null;
-    turnaroundScore: number | null;           // 레거시 호환
+    absoluteGapRatio?: number | null;         // New: (|TTM EPS| + NTM EPS)
     tGripScore: number | null;                // 신규 T-GRIP
+
+    // 추가 턴어라운드 상세 지표
+    evRevenue?: number | null;
+    psr?: number | null;                      // Price / Sales Ratio
+    ruleOf40?: number | null;
+    freeCashFlow?: number | null;             // TTM Operating Cash Flow
+    cashAndShortTermInvestments?: number | null;
 
     // Cash & Runway
     cashRunwayQuarters: number | null;
 
     // 추가 메타 (CAGR, Upgrades)
-    cagr3Y?: number | null;
+    cagr3Y: number | null;
     upgradeCount6M?: number;
     beta?: number | null;
     industry?: string;

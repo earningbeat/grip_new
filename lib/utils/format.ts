@@ -21,7 +21,8 @@ export function formatPercent(value: number, decimals: number = 2): string {
 /**
  * 시가총액 포맷팅 (축약)
  */
-export function formatMarketCap(value: number): string {
+export function formatMarketCap(value: number | null | undefined): string {
+    if (value === null || value === undefined) return '—';
     if (value >= 1e12) {
         return `$${(value / 1e12).toFixed(2)}T`;
     } else if (value >= 1e9) {
