@@ -19,18 +19,24 @@ export function formatPercent(value: number, decimals: number = 2): string {
 }
 
 /**
- * 시가총액 포맷팅 (축약)
+ * 시가총액/금액 포맷팅 (축약) - 음수도 지원
  */
 export function formatMarketCap(value: number | null | undefined): string {
     if (value === null || value === undefined) return '—';
-    if (value >= 1e12) {
-        return `$${(value / 1e12).toFixed(2)}T`;
-    } else if (value >= 1e9) {
-        return `$${(value / 1e9).toFixed(2)}B`;
-    } else if (value >= 1e6) {
-        return `$${(value / 1e6).toFixed(2)}M`;
+
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+
+    if (absValue >= 1e12) {
+        return `${sign}$${(absValue / 1e12).toFixed(2)}T`;
+    } else if (absValue >= 1e9) {
+        return `${sign}$${(absValue / 1e9).toFixed(2)}B`;
+    } else if (absValue >= 1e6) {
+        return `${sign}$${(absValue / 1e6).toFixed(2)}M`;
+    } else if (absValue >= 1e3) {
+        return `${sign}$${(absValue / 1e3).toFixed(1)}K`;
     } else {
-        return `$${value.toLocaleString()}`;
+        return `${sign}$${absValue.toLocaleString()}`;
     }
 }
 
