@@ -165,30 +165,28 @@ export async function analyzeStock(
         const tGripScore = calculateTGripScore(ttmEps, ntmEps, runway, revGrowth);
 
         // --- Data Integrity Check (Sanity Check) ---
-        // Filter out stocks with impossible or highly suspicious data to prevent UI corruption
         const mktCap = quote.marketCap || profile?.mktCap || 0;
 
-        // 1. EPS > Price (99% data corruption or unit error in API)
-        // Note: price * 1.5 allows for some extreme cases but caps insane errors like $420 EPS for $18 stock
+        // 1. Critical Error: EPS > Price (Data corruption or unit error in API)
         if (ttmEps > price && price > 0) {
             console.warn(`[SANITY CHECK] Skipping ${symbol}: TTM EPS ($${ttmEps.toFixed(2)}) is higher than Price ($${price.toFixed(2)})`);
             return null;
         }
 
-        // 2. Net Income > Revenue (Mathematically impossible)
-        if (ttmRev > 0 && Math.abs(ttmNetInc) > ttmRev * 1.5) {
-            // Allowing 1.5x for net income vs revenue to account for one-time gains, but not insane unit errors
-            if (ttmNetInc > ttmRev * 10) {
-                console.warn(`[SANITY CHECK] Skipping ${symbol}: Net Income ($${ttmNetInc}) is 10x Revenue ($${ttmRev})`);
-                return null;
-            }
-        }
-
-        // 3. P/E < 0.5x for profitable companies (Almost always a data error in automated parsing)
+        // 2. Impossible P/E Ratio (< 0.5x)
+        // Unless it's a very specific case, P/E < 0.5 is almost always a data parsing error
         if (ttmEps > 0 && price > 0) {
             const pe = price / ttmEps;
             if (pe < 0.5) {
                 console.warn(`[SANITY CHECK] Skipping ${symbol}: Impossible P/E ratio (${pe.toFixed(2)}x)`);
+                return null;
+            }
+        }
+
+        // 3. Net Income > Revenue (Mathematically impossible)
+        if (ttmRev > 0 && Math.abs(ttmNetInc) > ttmRev * 1.5) {
+            if (ttmNetInc > ttmRev * 10) {
+                console.warn(`[SANITY CHECK] Skipping ${symbol}: Net Income ($${ttmNetInc}) is 10x Revenue ($${ttmRev})`);
                 return null;
             }
         }

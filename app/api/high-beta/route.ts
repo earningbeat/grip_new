@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getCachedGRIPData } from '@/lib/data/cache';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Rule of 40: Revenue Growth (%) + Gross Margin (%) >= 40
 // 적자 기업은 Operating Margin 대신 Gross Margin 사용
 function calculateRuleOf40(revGrowth: number | null, grossMargin: number | null): number | null {

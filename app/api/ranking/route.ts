@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getCachedGRIPData } from '@/lib/data/cache';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Percentile 계산 (0-100)
 function calculatePercentile(value: number, sortedArray: number[]): number {
     if (sortedArray.length === 0) return 0;
