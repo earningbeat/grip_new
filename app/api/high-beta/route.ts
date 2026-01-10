@@ -68,12 +68,28 @@ export async function GET() {
             return NextResponse.json({ success: true, data: [] });
         }
 
-        // 1. Strict Turnaround Filter: TTM EPS < 0 AND NTM EPS > 0
-        const turnaroundCandidates = stocks.filter((s: StockData) =>
-            s.ttmEps < 0 &&
-            s.ntmEps !== null && s.ntmEps > 0 &&
-            (s.revenue ?? 0) > 0
-        );
+        // Debug: Log total stocks received
+        console.log(`[High-Beta] Total stocks from cache: ${stocks.length}`);
+
+        // 1. Turnaround Filter: More flexible to catch candidates
+        // - TTM EPS < 0 AND NTM EPS > 0 (original strict condition)
+        // - OR stock has isTurnaround flag set
+        // - OR TTM EPS is low (near zero or negative) with positive forward outlook
+        const turnaroundCandidates = stocks.filter((s: StockData) => {
+            const hasNegativeEps = s.ttmEps < 0;
+            const hasPositiveNtmEps = s.ntmEps !== null && s.ntmEps > 0;
+            const isLowEpsGrowing = s.ttmEps <= 0.5 && s.ntmEps !== null && s.ntmEps > s.ttmEps * 1.5;
+            const hasRevenue = (s.revenue ?? 0) > 0;
+
+            return (
+                ((hasNegativeEps && hasPositiveNtmEps) ||
+                    s.isTurnaround === true ||
+                    isLowEpsGrowing)
+                && hasRevenue
+            );
+        });
+
+        console.log(`[High-Beta] Turnaround candidates found: ${turnaroundCandidates.length}`);
 
         // 2. Enrich
         const enrichedStocks = turnaroundCandidates.map(enrichTurnaroundStock);

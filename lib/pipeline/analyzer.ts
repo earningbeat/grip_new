@@ -36,22 +36,24 @@ export async function analyzeStock(
         if ((!isNasdaq && !isNyse) || isOTC) return null;
 
         // 2. Fetch the rest only for eligible stocks
-        const [profileRes, incomeQRes, incomeARes, balanceRes, cashflowRes, gradesRes] = await Promise.all([
+        const [profileRes, incomeQRes, incomeARes, balanceRes, cashflowRes, gradesRes, ratiosTtmRes] = await Promise.all([
             fetch(`${baseUrl}/profile?symbol=${symbol}&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=annual&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
             fetch(`${baseUrl}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
-            fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`)
+            fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`),
+            fetch(`${baseUrl}/ratios-ttm/${symbol}?apikey=${apiKey}`)  // Fetch pre-calculated PEG
         ]);
 
-        const [profileData, incomeQ, incomeA, balanceData, cashFlowQ, grades] = await Promise.all([
+        const [profileData, incomeQ, incomeA, balanceData, cashFlowQ, grades, ratiosTtm] = await Promise.all([
             profileRes.json().catch(() => null),
             incomeQRes.json().catch(() => null),
             incomeARes.json().catch(() => null),
             balanceRes.json().catch(() => null),
             cashflowRes.json().catch(() => null),
-            gradesRes.json().catch(() => null)
+            gradesRes.json().catch(() => null),
+            ratiosTtmRes.json().catch(() => null)
         ]);
 
         const profile = profileData?.[0];
@@ -145,7 +147,11 @@ export async function analyzeStock(
         const ttmPe = ttmEps > 0 ? price / ttmEps : null;
         const forwardPe = ntmEps > 0 ? price / ntmEps : null;
         const gapRatio = ttmEps > 0 ? ntmEps / ttmEps : null;
-        const peg = (ttmPe && growthEst > 0) ? ttmPe / growthEst : null;
+
+        // PEG: Prefer FMP's pre-calculated value from ratios-ttm, fallback to our manual calculation
+        const fmpPeg = ratiosTtm?.[0]?.pegRatioTTM;
+        const manualPeg = (ttmPe && growthEst > 0) ? ttmPe / growthEst : null;
+        const peg = (fmpPeg && fmpPeg > 0 && fmpPeg < 50) ? fmpPeg : manualPeg; // Use FMP if valid
 
         // 8. Scoring (calculate individual scores for UI display)
         // PEG Score (0-5점): PEG 0.5 이하 = 5점, PEG 2.5 이상 = 0점

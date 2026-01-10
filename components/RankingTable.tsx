@@ -141,9 +141,9 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+            <div className="hidden md:block overflow-x-auto overflow-y-auto max-h-[70vh] rounded-xl border border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
                 <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-slate-900">
                         <tr className="border-b border-slate-700/50">
                             <th className="px-3 py-4 text-left font-semibold text-slate-400 text-[10px] w-10">#</th>
                             <th className="px-3 py-4 text-left font-semibold text-slate-300 text-[10px] w-20">TICKER</th>

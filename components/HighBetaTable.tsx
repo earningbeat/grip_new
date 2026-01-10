@@ -97,9 +97,9 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
     }
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-amber-500/20 bg-slate-900/50 backdrop-blur-sm">
+        <div className="overflow-x-auto overflow-y-auto max-h-[70vh] rounded-xl border border-amber-500/20 bg-slate-900/50 backdrop-blur-sm">
             <table className="w-full text-[11px] whitespace-nowrap">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-slate-900">
                     <tr className="border-b border-amber-500/20 bg-amber-500/5">
                         <th className="px-3 py-4 text-left font-semibold text-slate-500 w-10">#</th>
                         <th className="px-3 py-4 text-left font-semibold text-slate-300 min-w-[100px]">TICKER</th>
