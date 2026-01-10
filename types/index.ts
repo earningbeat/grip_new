@@ -74,6 +74,11 @@ export interface StockData {
     beta?: number | null;
     industry?: string;
 
+    // Latest quarter data (freshness)
+    latestQEps?: number | null;
+    latestQDate?: string | null;
+    latestQPeriod?: string | null;
+
     // 메타
     fiscalYearEndMonth: number;
     lastUpdated: string;

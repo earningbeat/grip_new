@@ -21,16 +21,19 @@ export async function analyzeStock(
 
         if (!quote) return null;
 
-        // Check basic eligibility: NASDAQ only (excl. OTC)
+        // Check basic eligibility: NASDAQ or NYSE (excl. OTC)
         const exchangeUpper = (quote.exchange || '').toUpperCase();
         const isNasdaq = exchangeUpper.includes('NASDAQ') ||
             exchangeUpper === 'NGS' ||
             exchangeUpper === 'NGM' ||
             exchangeUpper === 'NCM';
+        const isNyse = exchangeUpper.includes('NYSE') ||
+            exchangeUpper === 'NYQ' ||
+            exchangeUpper === 'NYS';
         const isOTC = exchangeUpper.includes('OTC') || exchangeUpper.includes('PINK');
 
-        // If not NASDAQ or is OTC, skip
-        if (!isNasdaq || isOTC) return null;
+        // If not (NASDAQ or NYSE) or is OTC, skip
+        if ((!isNasdaq && !isNyse) || isOTC) return null;
 
         // 2. Fetch the rest only for eligible stocks
         const [profileRes, incomeQRes, incomeARes, balanceRes, gradesRes] = await Promise.all([
@@ -77,6 +80,12 @@ export async function analyzeStock(
 
         // 4. EPS & CAGR
         const ttmEps = Array.isArray(incomeQ) ? incomeQ.reduce((s, q) => s + (Number(getEps(q)) || 0), 0) : 0;
+
+        // Latest quarter data (for freshness display)
+        const latestQ = Array.isArray(incomeQ) && incomeQ.length > 0 ? incomeQ[0] : null;
+        const latestQEps = latestQ ? Number(getEps(latestQ)) || 0 : null;
+        const latestQDate = latestQ?.date || null;
+        const latestQPeriod = latestQ?.period || null;
 
         let cagr3Y = null;
         if (Array.isArray(incomeA) && incomeA.length >= 4) {
@@ -202,7 +211,11 @@ export async function analyzeStock(
             isQuality: ttmEps > 0 && ntmEps > 0,
             isTurnaround: ttmEps <= 0 && ntmEps > 0,
             isEligible: ttmEps > 0 && ntmEps > 0,
-            warnings: upgrades > 0 ? [`최근 6개월 Upgrade ${upgrades}회`] : []
+            warnings: upgrades > 0 ? [`최근 6개월 Upgrade ${upgrades}회`] : [],
+            // Latest quarter data for freshness
+            latestQEps,
+            latestQDate,
+            latestQPeriod
         };
     } catch (e) {
         console.error(`Error analyzing ${symbol}:`, e);
