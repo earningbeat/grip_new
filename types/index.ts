@@ -67,9 +67,11 @@ export interface StockData {
 
     // 추가 턴어라운드 상세 지표
     evRevenue?: number | null;
+    evGrossProfit?: number | null;            // Hedge Fund: EV / Gross Profit
+    burnRate?: number | null;                 // Monthly cash burn rate (if FCF negative)
     psr?: number | null;                      // Price / Sales Ratio
     ruleOf40?: number | null;
-    freeCashFlow?: number | null;             // TTM Operating Cash Flow
+    freeCashFlow?: number | null;             // TTM Free Cash Flow
     cashAndShortTermInvestments?: number | null;
 
     // Cash & Runway

@@ -192,14 +192,20 @@ export async function analyzeStock(
             gapScore = Math.round(gapScore * 10) / 10;
         }
 
-        // 9. Revenue CAGR (3-5Y)
-        let revCagr3Y = null;
-        if (Array.isArray(incomeA) && incomeA.length >= 4) {
+        // 9. Revenue CAGR (works with 2+ years of data)
+        let revCagr3Y: number | null = null;
+        if (Array.isArray(incomeA) && incomeA.length >= 2) {
             const curRev = Number(incomeA[0].revenue) || 0;
-            const oldRev = Number(incomeA[3].revenue) || 0;
+            const years = Math.min(incomeA.length - 1, 3); // Use up to 3 years
+            const oldRev = Number(incomeA[years].revenue) || 0;
             if (curRev > 0 && oldRev > 0) {
-                revCagr3Y = (Math.pow(curRev / oldRev, 1 / 3) - 1) * 100;
+                revCagr3Y = (Math.pow(curRev / oldRev, 1 / years) - 1) * 100;
             }
+        }
+
+        // Debug logging for CAGR issues
+        if (!revCagr3Y && Array.isArray(incomeA)) {
+            console.log(`[DEBUG] ${symbol} CAGR null: incomeA.length=${incomeA.length}, rev[0]=${incomeA[0]?.revenue}, rev[last]=${incomeA[incomeA.length - 1]?.revenue}`);
         }
 
         const mktCap = quote.marketCap || profile?.mktCap || 0;
@@ -207,8 +213,16 @@ export async function analyzeStock(
         const totalDebt = (balanceData?.[0]?.totalDebt || 0);
         const ev = mktCap + totalDebt - totalCash;
 
+        // Debug logging for cash issues
+        if (totalCash === 0) {
+            console.log(`[DEBUG] ${symbol} totalCash=0: balanceData=${JSON.stringify(balanceData?.[0] ? Object.keys(balanceData[0]).slice(0, 10) : 'null')}`);
+        }
+
         const evRevenue = ttmRev > 0 ? ev / ttmRev : null;
         const psr = ttmRev > 0 ? mktCap / ttmRev : null;
+
+        // Hedge Fund Metrics
+        const evGrossProfit = ttmGrossProf > 0 ? ev / ttmGrossProf : null;  // EV/Gross Profit
 
         // TTM Free Cash Flow (sum of 4 quarters)
         let ttmFreeCashFlow = 0;
@@ -303,6 +317,8 @@ export async function analyzeStock(
             turnaroundDelta: ntmEps - ttmEps,
             tGripScore,
             evRevenue,
+            evGrossProfit,  // Hedge fund metric: EV / Gross Profit
+            burnRate: ttmFreeCashFlow < 0 ? Math.abs(ttmFreeCashFlow) / 12 : null,  // Monthly burn rate (only if FCF negative)
             psr,
             ruleOf40: (revGrowth !== null && gMargin !== null) ? (revGrowth * 100 + gMargin * 100) : null,
             freeCashFlow: ttmFreeCashFlow,
