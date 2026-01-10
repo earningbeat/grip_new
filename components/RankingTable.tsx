@@ -218,7 +218,7 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                         </tr>
                     </thead>
                     <tbody>
-                        {sortedData.map((stock: any, index) => (
+                        {sortedData.map((stock, index) => (
                             <tr
                                 key={stock.ticker}
                                 onClick={() => onSelectStock?.(stock)}
@@ -259,7 +259,7 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                                     </span>
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-[11px]">
-                                    <span className={stock.peg < 1 ? 'text-emerald-400' : 'text-slate-400'}>
+                                    <span className={(stock.peg ?? 0) < 1 ? 'text-emerald-400' : 'text-slate-400'}>
                                         {stock.peg?.toFixed(2) ?? '—'}
                                     </span>
                                 </td>
@@ -270,7 +270,7 @@ export default function RankingTable({ data, isLoading, onSelectStock }: Ranking
                                     {stock.forwardPe?.toFixed(1) ?? '—'}x
                                 </td>
                                 <td className="px-3 py-3 text-right font-mono text-[11px]">
-                                    <span className={stock.gapRatio > 1.5 ? 'text-purple-400 font-bold' : 'text-slate-400'}>
+                                    <span className={(stock.gapRatio ?? 0) > 1.5 ? 'text-purple-400 font-bold' : 'text-slate-400'}>
                                         {stock.gapRatio?.toFixed(2) ?? '—'}x
                                     </span>
                                 </td>
