@@ -41,7 +41,7 @@ export async function analyzeStock(
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/income-statement?symbol=${symbol}&period=annual&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
-            fetch(`${baseUrl}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
+            fetch(`${baseUrl}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`),
             fetch(`${baseUrl}/ratios-ttm/${symbol}?apikey=${apiKey}`),
             fetch(`${baseUrl}/key-metrics-ttm/${symbol}?apikey=${apiKey}`)  // More accurate PEG
@@ -210,8 +210,13 @@ export async function analyzeStock(
         const evRevenue = ttmRev > 0 ? ev / ttmRev : null;
         const psr = ttmRev > 0 ? mktCap / ttmRev : null;
 
-        // Operating Cash Flow (from Flow statement)
-        const ttmOcf = cashFlowQ?.[0]?.operatingCashFlow || 0;
+        // TTM Free Cash Flow (sum of 4 quarters)
+        let ttmFreeCashFlow = 0;
+        if (Array.isArray(cashFlowQ)) {
+            cashFlowQ.forEach(q => {
+                ttmFreeCashFlow += Number(q.freeCashFlow) || 0;
+            });
+        }
 
         // 10. GRIP & T-GRIP Scores
         const gripScore = Math.round((pegScore + gapScore) * 10) / 10;
@@ -300,7 +305,7 @@ export async function analyzeStock(
             evRevenue,
             psr,
             ruleOf40: (revGrowth !== null && gMargin !== null) ? (revGrowth * 100 + gMargin * 100) : null,
-            freeCashFlow: ttmOcf,
+            freeCashFlow: ttmFreeCashFlow,
             cashAndShortTermInvestments: totalCash,
             cashRunwayQuarters: runway,
             cagr3Y: revCagr3Y, // User asked for Revenue CAGR
