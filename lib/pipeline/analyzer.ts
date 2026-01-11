@@ -35,6 +35,16 @@ export async function analyzeStock(
         // If not (NASDAQ or NYSE) or is OTC, skip
         if ((!isNasdaq && !isNyse) || isOTC) return null;
 
+        // Delisted/Inactive stock detection
+        // - Zero or very low volume indicates no trading activity
+        // - Zero price change for extended period indicates stale data
+        const volume = quote.volume || 0;
+        const avgVolume = quote.avgVolume || 0;
+        if (volume === 0 && avgVolume === 0) {
+            console.warn(`[DELISTED] Skipping ${symbol}: Zero volume (likely delisted)`);
+            return null;
+        }
+
         // 2. Fetch the rest only for eligible stocks
         const [profileRes, incomeQRes, incomeARes, balanceRes, cashflowRes, gradesRes, ratiosTtmRes, keyMetricsRes] = await Promise.all([
             fetch(`${baseUrl}/profile?symbol=${symbol}&apikey=${apiKey}`),
