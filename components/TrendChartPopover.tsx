@@ -11,15 +11,25 @@ interface TrendChartPopoverProps {
 }
 
 export default function TrendChartPopover({ stock, metric, label, onClose }: TrendChartPopoverProps) {
-    // Determine which history to use
+    // Determine which history to use based on metric
     let history: { period: string; value: number }[] = [];
-    if (metric === 'price' || metric === 'eps') {
+    let metricLabel = label;
+
+    if (metric === 'eps') {
         history = stock.epsHistory || [];
+        metricLabel = 'EPS';
     } else if (metric === 'revenue') {
         history = stock.revenueHistory || [];
-    } else if (metric === 'fcf' || metric === 'netMargin') {
+        metricLabel = 'Revenue';
+    } else if (metric === 'fcf') {
         history = stock.fcfHistory || [];
+        metricLabel = 'Free Cash Flow';
+    } else if (metric === 'price' || metric === 'netMargin') {
+        // Price와 netMargin은 별도 히스토리가 없음, 가장 관련 있는 데이터 표시
+        history = metric === 'price' ? (stock.revenueHistory || []) : (stock.fcfHistory || []);
+        metricLabel = metric === 'price' ? 'Revenue (가격 히스토리 없음)' : 'FCF (Margin 데이터 없음)';
     }
+
 
     // Chart data calculation
     const maxValue = history.length > 0 ? Math.max(...history.map(d => d.value), 0) * 1.1 : 100;
@@ -33,7 +43,7 @@ export default function TrendChartPopover({ stock, metric, label, onClose }: Tre
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
                         {stock.ticker} Trend
                     </h4>
-                    <span className="text-xs font-black text-slate-900">{label}</span>
+                    <span className="text-xs font-black text-slate-900">{metricLabel}</span>
                 </div>
                 <button
                     onClick={onClose}

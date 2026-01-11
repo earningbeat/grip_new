@@ -83,20 +83,29 @@ export async function GET() {
         // Debug: Log total stocks received
         console.log(`[High-Beta] Total stocks from cache: ${stocks.length}`);
 
-        // 1. Turnaround Filter: More flexible to catch candidates
-        // - TTM EPS < 0 AND NTM EPS > 0 (original strict condition)
-        // - OR stock has isTurnaround flag set
-        // - OR TTM EPS is low (near zero or negative) with positive forward outlook
+        // 1. Turnaround Filter: 더 유연하게 후보 선정
+        // - TTM EPS < 0 AND NTM EPS > 0 (적자->흑자 전환)
+        // - OR TTM EPS < 0 AND 매출 성장 20% 이상 (고성장 적자 기업)
+        // - OR TTM EPS < 1 AND NTM EPS > TTM EPS (EPS 개선 중)
+        // - OR isTurnaround 플래그
+        // - OR 고성장 (CAGR > 30%) AND 낮은 수익성 (Net Margin < 5%)
         const turnaroundCandidates = stocks.filter((s: StockData) => {
             const hasNegativeEps = s.ttmEps < 0;
             const hasPositiveNtmEps = s.ntmEps !== null && s.ntmEps > 0;
-            const isLowEpsGrowing = s.ttmEps <= 0.5 && s.ntmEps !== null && s.ntmEps > s.ttmEps * 1.5;
+            const isEpsImproving = s.ntmEps !== null && s.ntmEps > s.ttmEps;
+            const hasHighRevGrowth = (s.revenueGrowthYoY ?? 0) > 0.2;
             const hasRevenue = (s.revenue ?? 0) > 0;
+            const isHighGrowthLowProfit = (s.cagr3Y ?? 0) > 30 && (s.netMargin ?? 0) < 0.05;
+            const isLowEps = s.ttmEps < 1;
 
             return (
-                ((hasNegativeEps && hasPositiveNtmEps) ||
-                    s.isTurnaround === true ||
-                    isLowEpsGrowing)
+                (
+                    (hasNegativeEps && hasPositiveNtmEps) ||                    // 적자 -> 흑자
+                    (hasNegativeEps && hasHighRevGrowth) ||                     // 적자 + 고성장
+                    (isLowEps && isEpsImproving) ||                             // 저수익 + 개선중
+                    s.isTurnaround === true ||                                  // 플래그
+                    isHighGrowthLowProfit                                       // 고성장 저수익
+                )
                 && hasRevenue
             );
         });

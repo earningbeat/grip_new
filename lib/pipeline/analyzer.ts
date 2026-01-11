@@ -100,34 +100,50 @@ export function calculateMetricsFromRaw(raw: RawStockFinancials): EnrichedStockD
     // 4. EPS & CAGR
     const ttmEps = incomeQuarterly.reduce((s: number, q: any) => s + (Number(getEps(q)) || 0), 0);
 
-    // 5. NTM & Estimations
+    // 5. NTM & Estimations - IMPROVED
     let growthEst = 0;
     if (Array.isArray(incomeAnnual) && incomeAnnual.length >= 4) {
         const cur = Number(getEps(incomeAnnual[0])) || 0;
         const old = Number(getEps(incomeAnnual[3])) || 0;
         if (cur > 0 && old > 0) {
             growthEst = (Math.pow(cur / old, 1 / 3) - 1) * 100;
+        } else if (cur > old) {
+            // 적자에서 개선 중: 매출 성장률의 50%를 EPS 성장으로 추정
+            growthEst = revGrowth !== null ? Math.abs(revGrowth) * 50 : 10;
         }
     }
-    const ntmEps = ttmEps * (1 + Math.max(0, growthEst) / 100);
+
+    // NTM EPS: 최소 5% 성장 가정 (성장률이 유효한 경우)
+    const effectiveGrowth = Math.max(5, growthEst);
+    let ntmEps = ttmEps * (1 + effectiveGrowth / 100);
+
+    // 적자 기업 특별 처리: 매출 성장이 있으면 적자 감소 추정
+    if (ttmEps < 0 && revGrowth !== null && revGrowth > 0.1) {
+        // 매출 20% 성장시 적자 30% 감소 가정
+        ntmEps = ttmEps * (1 - Math.min(0.5, revGrowth * 1.5));
+    }
 
     // 6. PE & PEG
     const price = quote.price || 0;
     const ttmPe = ttmEps > 0 ? price / ttmEps : null;
     const forwardPe = ntmEps > 0 ? price / ntmEps : null;
-    const gapRatio = ttmEps > 0 ? ntmEps / ttmEps : null;
+    const gapRatio = ttmEps !== 0 ? ntmEps / ttmEps : null;
 
     const keyMetricsPeg = keyMetrics?.pegRatioTTM;
     const manualPeg = (ttmPe && growthEst >= 5) ? ttmPe / growthEst : null;
     const peg = keyMetricsPeg || manualPeg;
 
-    // 7. Cash & Burn
+    // 7. Cash & Burn - 적자 기업만 runway 계산
     let runway = null;
     const totalCash = (balanceSheetQuarterly?.[0]?.cashAndCashEquivalents || 0) + (balanceSheetQuarterly?.[0]?.shortTermInvestments || 0);
-    const quarterlyBurn = Math.abs(incomeQuarterly[0]?.netIncome || 0);
-    if (incomeQuarterly[0]?.netIncome < 0 && quarterlyBurn > 0) {
+    const latestNetIncome = incomeQuarterly[0]?.netIncome || 0;
+    const quarterlyBurn = Math.abs(latestNetIncome);
+
+    // 흑자 기업은 runway null (무한대가 아닌 '해당없음')
+    if (latestNetIncome < 0 && quarterlyBurn > 0) {
         runway = totalCash / quarterlyBurn;
     }
+
 
     // TTM History for frontend charts
     const epsHistory = [...incomeQuarterly].reverse().map((q: any) => ({

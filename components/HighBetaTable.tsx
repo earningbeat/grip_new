@@ -385,8 +385,17 @@ export default function HighBetaTable({ data, isLoading, onSelectStock }: HighBe
                                     {formatMarketCap(stock.cashAndShortTermInvestments)}
                                 </td>
                                 <td className="px-3 py-4 text-right font-mono pr-6">
-                                    <span className={`font-black text-[11px] ${(stock.cashRunwayQuarters ?? 0) < 4 ? 'text-rose-500' : 'text-slate-400'}`}>
-                                        {stock.cashRunwayQuarters !== null ? (stock.cashRunwayQuarters >= 50 ? '∞' : `${stock.cashRunwayQuarters.toFixed(0)}Q`) : '—'}
+                                    <span className={`font-black text-[11px] ${stock.cashRunwayQuarters === null
+                                            ? 'text-emerald-500'
+                                            : (stock.cashRunwayQuarters ?? 0) < 4
+                                                ? 'text-rose-500'
+                                                : 'text-slate-400'
+                                        }`}>
+                                        {stock.cashRunwayQuarters === null
+                                            ? '흑자'
+                                            : stock.cashRunwayQuarters >= 50
+                                                ? '∞'
+                                                : `${stock.cashRunwayQuarters.toFixed(0)}Q`}
                                     </span>
                                 </td>
                             </tr>
