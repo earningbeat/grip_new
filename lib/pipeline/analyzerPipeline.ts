@@ -58,14 +58,18 @@ export async function runAnalyzerPipeline(): Promise<RunAnalyzerPipelineResult> 
     let successful = 0;
     let failed = 0;
 
-    // Batch processing with delay between batches
-    const batchSize = 5; // Process 5 stocks at a time
-    const delayMs = 1000; // 1 second delay between batches (respect rate limits)
+    // Optimized for Vercel 5-minute limit and FMP Premium rate limits
+    const batchSize = 10; // Process 10 stocks at a time
+    const delayMs = 500; // 500ms delay between batches
+    const maxStocks = 1500; // Limit to ensure completion within 5 minutes
 
-    for (let i = 0; i < symbols.length; i += batchSize) {
-        const batch = symbols.slice(i, i + batchSize);
+    const symbolsToProcess = symbols.slice(0, maxStocks);
+    console.log(`[Pipeline] Processing ${symbolsToProcess.length}/${symbols.length} stocks (limited for time constraints)`);
 
-        console.log(`[Pipeline] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(symbols.length / batchSize)} (${i}/${symbols.length})...`);
+    for (let i = 0; i < symbolsToProcess.length; i += batchSize) {
+        const batch = symbolsToProcess.slice(i, i + batchSize);
+
+        console.log(`[Pipeline] Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(symbolsToProcess.length / batchSize)} (${i}/${symbolsToProcess.length})...`);
 
         const batchResults = await Promise.all(
             batch.map(async (symbol) => {
