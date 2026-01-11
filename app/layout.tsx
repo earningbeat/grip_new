@@ -27,14 +27,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="dark" suppressHydrationWarning>
+    <html lang="ko" suppressHydrationWarning>
       <body
-        className={`${inter.variable} font-sans antialiased bg-slate-950 text-slate-100 min-h-screen`}
+        className={`${inter.variable} font-sans antialiased bg-white text-slate-900 min-h-screen`}
         suppressHydrationWarning
       >
-        {/* Background gradient */}
-        <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.15),transparent)]" />
-
         {children}
       </body>
     </html>

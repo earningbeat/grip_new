@@ -88,6 +88,11 @@ export interface StockData {
     latestQDate?: string | null;
     latestQPeriod?: string | null;
 
+    // Quarterly history (for charts)
+    epsHistory?: { period: string; value: number }[];
+    revenueHistory?: { period: string; value: number }[];
+    fcfHistory?: { period: string; value: number }[];
+
     // 메타
     fiscalYearEndMonth: number;
     lastUpdated: string;

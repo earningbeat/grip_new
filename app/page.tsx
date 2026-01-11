@@ -109,8 +109,8 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3">
+      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-[98%] mx-auto px-3 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-shrink-0">
               <h1 className="text-lg sm:text-2xl font-bold">
@@ -131,7 +131,7 @@ export default function Home() {
                   onChange={(e) => setSearchTicker(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch(e as any)}
                   placeholder="Search ticker"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-900 text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                 />
                 <button
                   onClick={handleSearch}
@@ -148,7 +148,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[98%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 검색 결과 표시 */}
         {isSearching && (
           <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-6 animate-pulse">
@@ -161,11 +161,11 @@ export default function Home() {
 
         {searchResult && !isSearching && (
           <div className={`mb-6 rounded-2xl border p-6 animate-fade-in backdrop-blur-sm ${searchResult.success && searchResult.data?.isTurnaround
-            ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-orange-500/10'
+            ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/5 to-orange-500/5'
             : searchResult.success && (searchResult.data?.isEligible || searchResult.data?.isQuality)
-              ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10'
+              ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5'
               : searchResult.success
-                ? 'border-slate-500/40 bg-slate-800/50'
+                ? 'border-slate-200 bg-slate-50/50'
                 : 'border-red-500/30 bg-red-500/10'
             }`}>
             {searchResult.success && searchResult.data ? (
@@ -198,8 +198,8 @@ export default function Home() {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <div className="flex items-center gap-3 mb-1">
-                        <span className="text-2xl font-bold text-white">{searchResult.data.ticker}</span>
-                        <span className="text-lg text-slate-300">{searchResult.data.name}</span>
+                        <span className="text-2xl font-bold text-slate-900">{searchResult.data.ticker}</span>
+                        <span className="text-lg text-slate-600">{searchResult.data.name}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-300">{searchResult.data.exchange}</span>
@@ -228,11 +228,11 @@ export default function Home() {
                   <div className="grid grid-cols-4 md:grid-cols-5 gap-3 mb-4">
                     <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wide">Price</p>
-                      <p className="text-lg font-mono font-bold text-white">${searchResult.data.price.toFixed(2)}</p>
+                      <p className="text-lg font-mono font-bold text-slate-900">${searchResult.data.price.toFixed(2)}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wide">Market Cap</p>
-                      <p className="text-lg font-mono font-bold text-white">
+                      <p className="text-lg font-mono font-bold text-slate-900">
                         {searchResult.data.marketCap >= 1e12
                           ? `$${(searchResult.data.marketCap / 1e12).toFixed(2)}T`
                           : `$${(searchResult.data.marketCap / 1e9).toFixed(1)}B`}
@@ -246,7 +246,7 @@ export default function Home() {
                     </div>
                     <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wide">Fwd P/E</p>
-                      <p className="text-lg font-mono font-bold text-cyan-400">{searchResult.data.forwardPe?.toFixed(1) ?? '—'}</p>
+                      <p className="text-lg font-mono font-bold text-blue-600">{searchResult.data.forwardPe?.toFixed(1) ?? '—'}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30">
                       <p className="text-[10px] text-purple-300 uppercase tracking-wide">Gap Ratio</p>
@@ -371,12 +371,12 @@ export default function Home() {
 
         {/* Tab Navigation */}
         <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          <div className="flex gap-2 p-1 bg-slate-800/50 rounded-xl w-fit">
+          <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
             <button
               onClick={() => setActiveTab('quality')}
               className={`px-6 py-3 rounded-lg font-medium text-sm transition-all ${activeTab === 'quality'
-                ? 'bg-emerald-500/20 text-emerald-400 shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-white text-emerald-600 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
                 }`}
             >
               <div className="flex items-center gap-2">
@@ -393,8 +393,8 @@ export default function Home() {
             <button
               onClick={() => setActiveTab('high-beta')}
               className={`px-6 py-3 rounded-lg font-medium text-sm transition-all ${activeTab === 'high-beta'
-                ? 'bg-amber-500/20 text-amber-400 shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-white text-amber-600 shadow-sm border border-slate-200'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
                 }`}
             >
               <div className="flex items-center gap-2">
@@ -414,25 +414,25 @@ export default function Home() {
         <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
           {activeTab === 'quality' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+              <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                    <span className="text-cyan-400 font-bold text-sm">G</span>
+                    <span className="text-cyan-600 font-bold text-sm">G</span>
                   </div>
-                  <h3 className="font-semibold text-cyan-400">GRIP Score</h3>
+                  <h3 className="font-semibold text-cyan-600">GRIP Score</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">PEG Score + Gap Score (2-20점)</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 mb-2">PEG Score + Gap Score (2-20점)</p>
+                <p className="text-xs text-slate-600">
                   정규분포 기반 복합 점수. 높을수록 고성장 저평가 종목.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                     <span className="text-emerald-400 font-bold text-sm">P</span>
                   </div>
-                  <h3 className="font-semibold text-white">PEG Score</h3>
+                  <h3 className="font-semibold text-slate-800">PEG Score</h3>
                 </div>
                 <p className="text-xs text-slate-400 mb-2">정규분포 기반 (1-10점)</p>
                 <p className="text-xs text-slate-500">
@@ -440,83 +440,83 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                    <span className="text-blue-400 font-bold text-sm">G</span>
+                    <span className="text-blue-600 font-bold text-sm">G</span>
                   </div>
-                  <h3 className="font-semibold text-white">Gap Score</h3>
+                  <h3 className="font-semibold text-slate-800">Gap Score</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">정규분포 기반 (1-10점)</p>
-                <p className="text-xs text-slate-500">
-                  Gap Ratio가 <span className="text-blue-400">높을수록</span> 높은 점수. 실적 개선 기대.
+                <p className="text-xs text-slate-500 mb-2">정규분포 기반 (1-10점)</p>
+                <p className="text-xs text-slate-600">
+                  Gap Ratio가 <span className="text-blue-600">높을수록</span> 높은 점수. 실적 개선 기대.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <span className="text-purple-400 font-bold text-sm">A</span>
+                    <span className="text-purple-600 font-bold text-sm">A</span>
                   </div>
-                  <h3 className="font-semibold text-white">Adj. PEG</h3>
+                  <h3 className="font-semibold text-slate-800">Adj. PEG</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">나스닥 100 벤치마크</p>
-                <p className="text-xs text-slate-500">
-                  성장률 <span className="text-purple-400 font-semibold">{metadata?.benchmarkGrowth || 0}%</span> & P/E <span className="text-purple-400 font-semibold">{metadata?.benchmarkPe || 0}x</span> 이상 대상.
+                <p className="text-xs text-slate-500 mb-2">나스닥 100 벤치마크</p>
+                <p className="text-xs text-slate-600">
+                  성장률 <span className="text-purple-600 font-semibold">{metadata?.benchmarkGrowth || 0}%</span> & P/E <span className="text-purple-600 font-semibold">{metadata?.benchmarkPe || 0}x</span> 이상 대상.
                 </p>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                    <span className="text-amber-400 font-bold text-sm">T</span>
+                    <span className="text-amber-600 font-bold text-sm">T</span>
                   </div>
-                  <h3 className="font-semibold text-amber-400">T-GRIP Score</h3>
+                  <h3 className="font-semibold text-amber-600">T-GRIP Score</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">Turnaround GRIP (1-10점)</p>
-                <p className="text-xs text-slate-500">
-                  정규분포 기반. Delta가 <span className="text-amber-400">클수록</span> 높은 점수.
+                <p className="text-xs text-slate-500 mb-2">Turnaround GRIP (1-10점)</p>
+                <p className="text-xs text-slate-600">
+                  정규분포 기반. Delta가 <span className="text-amber-600">클수록</span> 높은 점수.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                    <span className="text-cyan-400 font-bold text-sm">Δ</span>
+                    <span className="text-cyan-600 font-bold text-sm">Δ</span>
                   </div>
-                  <h3 className="font-semibold text-white">Delta</h3>
+                  <h3 className="font-semibold text-slate-800">Delta</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">NTM EPS − TTM EPS</p>
-                <p className="text-xs text-slate-500">
-                  EPS 변화량. <span className="text-cyan-400">클수록</span> 강력한 턴어라운드.
+                <p className="text-xs text-slate-500 mb-2">NTM EPS − TTM EPS</p>
+                <p className="text-xs text-slate-600">
+                  EPS 변화량. <span className="text-cyan-600">클수록</span> 강력한 턴어라운드.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                    <span className="text-red-400 font-bold text-sm">−</span>
+                    <span className="text-red-600 font-bold text-sm">−</span>
                   </div>
-                  <h3 className="font-semibold text-white">TTM EPS</h3>
+                  <h3 className="font-semibold text-slate-800">TTM EPS</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">과거 12개월 실적</p>
-                <p className="text-xs text-slate-500">
-                  <span className="text-red-400">음수</span> = 현재 적자 상태
+                <p className="text-xs text-slate-500 mb-2">과거 12개월 실적</p>
+                <p className="text-xs text-slate-600">
+                  <span className="text-red-600">음수</span> = 현재 적자 상태
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                    <span className="text-emerald-400 font-bold text-sm">+</span>
+                    <span className="text-emerald-600 font-bold text-sm">+</span>
                   </div>
-                  <h3 className="font-semibold text-white">NTM EPS</h3>
+                  <h3 className="font-semibold text-slate-800">NTM EPS</h3>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">향후 12개월 예상</p>
-                <p className="text-xs text-slate-500">
-                  <span className="text-emerald-400">양수</span> = 흑자 전환 예상
+                <p className="text-xs text-slate-500 mb-2">향후 12개월 예상</p>
+                <p className="text-xs text-slate-600">
+                  <span className="text-emerald-600">양수</span> = 흑자 전환 예상
                 </p>
               </div>
             </div>
@@ -526,7 +526,7 @@ export default function Home() {
         {/* Data Table */}
         <section className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-bold text-slate-900">
               {activeTab === 'quality'
                 ? `Top ${currentData.length} by GRIP Score`
                 : `Turnaround Candidates (${currentData.length})`
