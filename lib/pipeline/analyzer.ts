@@ -43,8 +43,8 @@ export async function analyzeStock(
             fetch(`${baseUrl}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${apiKey}`),
             fetch(`${baseUrl}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${apiKey}`),
             fetch(`${baseUrl}/grades?symbol=${symbol}&limit=20&apikey=${apiKey}`),
-            fetch(`${baseUrl}/ratios-ttm/${symbol}?apikey=${apiKey}`),
-            fetch(`${baseUrl}/key-metrics-ttm/${symbol}?apikey=${apiKey}`)  // More accurate PEG
+            fetch(`${baseUrl}/ratios-ttm?symbol=${symbol}&apikey=${apiKey}`),
+            fetch(`${baseUrl}/key-metrics-ttm?symbol=${symbol}&apikey=${apiKey}`)  // More accurate PEG
         ]);
 
         const [profileData, incomeQ, incomeA, balanceData, cashFlowQ, grades, ratiosTtm, keyMetrics] = await Promise.all([

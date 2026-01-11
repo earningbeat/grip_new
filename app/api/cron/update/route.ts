@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runPipeline } from '@/lib/pipeline/processor';
+import { runAnalyzerPipeline } from '@/lib/pipeline/analyzerPipeline';
 
 // Vercel Cron configuration
 export const runtime = 'nodejs';
@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        console.log('[Cron] Starting data update...');
+        console.log('[Cron] Starting data update with analyzer pipeline...');
 
-        const result = await runPipeline();
+        const result = await runAnalyzerPipeline();
 
         // TODO: Vercel KV 또는 다른 저장소에 캐싱
         // 현재는 JSON 파일로 저장 (data 폴더)
