@@ -195,10 +195,17 @@ export function calculateMetricsFromRaw(raw: RawStockFinancials): EnrichedStockD
         latestQPeriod: incomeQuarterly[0]?.period
     } as any;
 
-    const pegScore = calculateGripScore(stockData.peg);
-    const gapScore = calculateGripScore(stockData.gapRatio);
-    const gripScore = pegScore + gapScore;
-    const tGripScore = calculateTGripScore(stockData);
+    const { pegScore, gapScore, totalScore: gripScore } = calculateGripScore({
+        peg: stockData.peg,
+        gapRatio: stockData.gapRatio
+    });
+
+    const tGripScore = calculateTGripScore(
+        stockData.ttmEps,
+        stockData.ntmEps || 0,
+        stockData.cashRunwayQuarters,
+        stockData.revenueGrowthYoY ?? null
+    );
 
     const enriched: EnrichedStockData = {
         ...stockData,
