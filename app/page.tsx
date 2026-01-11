@@ -1,4 +1,5 @@
 'use client';
+// Build Timestamp: 2026-01-11T19:48:00+09:00
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import RankingTable from '@/components/RankingTable';
